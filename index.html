@@ -3,356 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jaron Dembsky's Enthalpy-O-Matic!</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700&display=swap');
-
-        body {
-            font-family: 'Nunito', sans-serif;
-            background-color: #e0f7fa; /* Light cyan */
-            color: #004d40; /* Dark teal */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .container {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0, 77, 64, 0.2);
-            width: 90%;
-            max-width: 700px;
-            text-align: center;
-            border: 5px solid #00796b; /* Teal border */
-        }
-
-        h1 {
-            font-family: 'Bangers', cursive;
-            color: #d81b60; /* Pinkish red */
-            font-size: 2.8em;
-            margin-bottom: 10px;
-            letter-spacing: 2px;
-            text-shadow: 2px 2px #ffc107; /* Yellow shadow */
-        }
-        h1 .beaker-icon {
-            display: inline-block;
-            width: 0.8em;
-            height: 1em;
-            background-color: #4dd0e1; /* Light blue for beaker */
-            border: 3px solid #00796b;
-            border-bottom: none;
-            border-radius: 5px 5px 0 0;
-            position: relative;
-            bottom: -0.1em;
-            margin: 0 5px;
-        }
-        h1 .beaker-icon::before {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: -8px;
-            width: calc(100% + 10px);
-            height: 5px;
-            background-color: #00796b;
-            border-radius: 0 0 5px 5px;
-        }
-
-
-        label {
-            font-weight: bold;
-            font-size: 1.2em;
-            color: #00796b; /* Teal */
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        #reactionInput {
-            width: calc(100% - 22px);
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 2px solid #00796b; /* Teal border */
-            border-radius: 10px;
-            font-size: 1em;
-            background-color: #f0f9ff; /* Very light blue */
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #reactionInput:focus {
-            outline: none;
-            border-color: #d81b60; /* Pinkish red */
-            box-shadow: 0 0 8px rgba(216, 27, 96, 0.3);
-        }
-
-        button {
-            background-color: #ffc107; /* Amber */
-            color: #3e2723; /* Dark brown */
-            border: none;
-            padding: 12px 25px;
-            font-size: 1.2em;
-            font-weight: bold;
-            font-family: 'Bangers', cursive;
-            letter-spacing: 1px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            text-transform: uppercase;
-        }
-
-        button:hover {
-            background-color: #ffa000; /* Darker amber */
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-        button:active {
-            transform: translateY(0px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        #results {
-            margin-top: 25px;
-            text-align: left;
-            background-color: #f0f9ff; /* Very light blue */
-            padding: 20px;
-            border-radius: 10px;
-            border: 2px dashed #00796b; /* Teal dashed border */
-            line-height: 1.6;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        #results h2 {
-            font-family: 'Bangers', cursive;
-            color: #00796b; /* Teal */
-            font-size: 1.8em;
-            margin-top: 0;
-            border-bottom: 2px solid #ffc107; /* Amber */
-            padding-bottom: 5px;
-        }
-
-        #results p {
-            margin: 8px 0;
-        }
-
-        #results .error {
-            color: #d32f2f; /* Red */
-            font-weight: bold;
-        }
-        #results .exothermic {
-            color: #2e7d32; /* Green */
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        #results .endothermic {
-            color: #d84315; /* Deep orange */
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        #results .neutral {
-            color: #006064; /* Cyan-dark */
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-
-        .calculation-step {
-            margin-left: 20px;
-            font-style: italic;
-            color: #006064;
-        }
-        .final-deltaH {
-            font-weight: bold;
-            font-size: 1.2em;
-            color: #d81b60; /* Pinkish red */
-            background-color: #fffde7; /* Light yellow bg */
-            padding: 5px;
-            border-radius: 5px;
-            display: inline-block;
-        }
-        .footer-note {
-            margin-top: 20px;
-            font-size: 0.9em;
-            color: #00796b;
-            font-style: italic;
-        }
-
-        /* Atom bounce animation */
-        .atom {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background-color: #ff7043; /* Coral */
-            border-radius: 50%;
-            margin: 0 2px;
-            animation: bounce 0.8s infinite alternate;
-        }
-        .atom:nth-child(2) { animation-delay: 0.2s; background-color: #26a69a; /* Teal accent */}
-        .atom:nth-child(3) { animation-delay: 0.4s; background-color: #ffee58; /* Yellow accent */}
-
-        @keyframes bounce {
-            from { transform: translateY(0px); }
-            to { transform: translateY(-5px); }
-        }
-
-    </style>
+    <title>Canal Cleaners - Endodontist Game</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>
-            <span class="beaker-icon"></span>
-            Jaron Dembsky's Enthalpy-O-Matic!
-            <span class="beaker-icon"></span>
-        </h1>
+    <div id="game-container">
+        <header>
+            <h1>Canal Cleaners</h1>
+            <div id="score-board">Score: <span id="score">0</span></div>
+        </header>
 
-        <label for="reactionInput">Enter Your Chemical Reaction:</label>
-        <input type="text" id="reactionInput" value="1 NH3(g) + 1 HCl(g) -> 1 NH4Cl(s)" placeholder="e.g., 2 H2(g) + 1 O2(g) -> 2 H2O(l)">
-
-        <button onclick="runCalculation()">
-            Calculate
-            <span class="atom"></span><span class="atom"></span><span class="atom"></span>
-            Enthalpy!
-        </button>
-
-        <div id="results">
-            <!-- Results will be displayed here -->
-            <p>Enter a reaction above and click "Calculate Enthalpy!" to see the magic!</p>
+        <div id="patient-info">
+            Patient Comfort: 
+            <div id="comfort-bar-container">
+                <div id="comfort-bar"></div>
             </div>
-        <h3>Rules:</h3>
-            <ul>Insert your balanced chemical reaction above</ul>
-            <ul>Fractional coefficients should be typed as decimals</ul>
-            <ul>Write coefficicient then space then substance </ul>
-            <ul>Subtances don't need subscripts in them just the numbers work</ul>
+            <img id="comfort-face" src="happy_tooth_face.png" alt="Comfort Face">
         </div>
-        <p class="footer-note">Happy Calculating, Chem Whizz!</p>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="controls-info">
+            Use Arrow Keys to Move File. Press Space to Zap Bacteria.
+        </div>
+
+        <div id="message-overlay" class="hidden">
+            <div id="message-box">
+                <h2 id="message-title"></h2>
+                <p id="message-text"></p>
+                <button id="action-button">Start Game</button>
+            </div>
+        </div>
     </div>
 
-    <script>
-        const enthalpies = {
-            "Ag(s)": 0, "AgCl(s)": -127.068, "AgCN(s)": 146.0, "Al2O3": -1675.7,
-            "BaCl2(aq)": -871.95, "BaSO4": -1473.2, "BeO(s)": -609.6, "BiCl3(s)": -379.1,
-            "Bi2S3(s)": 143.1, "Br2(l)": 0, "CCl4(l)": -128.2, "CH4(g)": -74.81,
-            "C2H2(g)": 226.73, "C2H4(g)": 52.26, "C2H6(g)": -84.68, "C6H6": 48.6,
-            "CO(g)": -110.525, "CO2(g)": -393.509, "CS2(l)": 89.70, "Ca(s)": 0,
-            "CaCO3(s)": -1206.9, "CaO(s)": -635.1, "Ca(OH)2(s)": -986.09, "Cl2(g)": 0,
-            "CoO(s)": -891, "Cr2O3(s)": -1139.7, "CsCl(s)": -443.04, "Cs2SO4(s)": -1443.02,
-            "CuI(s)": -67.8, "CuS(s)": -53.1, "Cu2S(s)": -79.5, "CuSO4(s)": -771.36,
-            "F2(g)": 0, "FeCl3(s)": -399.49, "FeO(s)": -272.0, "FeS(s)": -100.0,
-            "Fe2O3(s)": -824.2, "Fe3O4(s)": -1118.4, "H(g)": 217.965, "H2(g)": 0,
-            "HBr(g)": -36.40, "HCl(g)": -92.307, "HCl(aq)": -167.159, "HCN(aq)": 108.9,
-            "HCHO": -108.57, "HCOOH(l)": -424.72, "HF(g)": -271.1, "HI(g)": -26.48,
-            "H2O(g)": -241.818, "H2O(l)": -285.83, "H2O2(l)": -187.8, "H3PO4(l)": -595.4,
-            "H3PO4(aq)": -1279.0, "H2S(g)": -20.63, "H2SO3(aq)": -608.81, "H2SO4(aq)": -814.0,
-            "HgCl2(s)": -224.3, "Hg2Cl2(s)": -265.22, "Hg2SO4(s)": -743.12, "I2(s)": 0,
-            "K(s)": 0, "KBr(s)": -393.798, "KMnO4(s)": -837.2, "KOH": -424.764,
-            "LiBr(s)": -351.213, "LiOH(s)": -484.93, "Mn(s)": 0, "MnCl2(aq)": -555.05,
-            "Mn(NO3)2(aq)": -635.5, "MnO2(s)": -520.03, "MnS(s)": -214.2, "N2(g)": 0,
-            "NH3(g)": -46.11, "NH4Br(s)": -270.83, "NO(g)": 90.25, "NO2(g)": 33.18,
-            "N2O(g)": 82.05, "Na(s)": 0, "NaBr(s)": -361.062, "NaCl(s)": -411.153,
-            "NaHCO3(s)": -950.8, "NaNO3(aq)": -447.48, "NaOH(s)": -425.609,
-            "Na2CO3(s)": -1130.7, "Na2S(aq)": -447.3, "Na2SO4(s)": -1387.08,
-            "NH4Cl(s)": -314.4, "O2(g)": 0, "P4O6(s)": -1640.1, "P4O10(s)": -2984.0,
-            "PbBr2(s)": -278.7, "PbCl2(s)": -359.41, "SF6(g)": -1220.5, "SO2(g)": -296.830,
-            "SO3(g)": -454.51, "SrO(s)": -592.0, "TiO2(s)": -939.7, "TlI(s)": -123.5,
-            "UCl4(s)": -1019.2, "UCl5(s)": -1059, "Zn(s)": 0, "ZnCl2(aq)": -488.19,
-            "ZnO(s)": -348.28, "ZnSO4(aq)": -1063.15
-        };
-
-        function parseSide(side) {
-            const parts = side.split('+');
-            const result = [];
-            for (let part of parts) {
-                part = part.trim();
-                let coeff = 1;
-                let subst = part;
-                const spaceIndex = part.indexOf(' ');
-                if (spaceIndex > 0 && !isNaN(parseInt(part.substring(0, spaceIndex)))) {
-                    coeff = parseInt(part.substring(0, spaceIndex));
-                    subst = part.substring(spaceIndex + 1).trim();
-                }
-                result.push({ coeff, subst });
-            }
-            return result;
-        }
-
-        function runCalculation() {
-            const reactionInput = document.getElementById('reactionInput').value;
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '<h2>Calculation Breakdown:</h2>'; // Clear previous results
-
-            if (!reactionInput.includes("->")) {
-                resultsDiv.innerHTML += "<p class='error'>Error: Reaction must use '->' to separate reactants and products.</p>";
-                return;
-            }
-
-            const sides = reactionInput.split("->");
-            if (sides.length !== 2 || !sides[0].trim() || !sides[1].trim()) {
-                 resultsDiv.innerHTML += "<p class='error'>Error: Invalid reaction format. Ensure reactants and products are specified.</p>";
-                return;
-            }
-            const reactants = parseSide(sides[0]);
-            const products = parseSide(sides[1]);
-
-            let outputHTML = "";
-            let calculationLog = "";
-            let errorOccurred = false;
-
-            calculationLog += "<p><strong>Reactants:</strong></p>";
-            let total_react = 0;
-            for (const item of reactants) {
-                if (item.subst in enthalpies) {
-                    const deltaH = enthalpies[item.subst];
-                    const total = item.coeff * deltaH;
-                    total_react += total;
-                    calculationLog += `<p class="calculation-step">${item.coeff} mol × ΔH<sub>f</sub>(${item.subst}) = ${item.coeff} × ${deltaH} = ${total.toFixed(3)} kJ</p>`;
-                } else {
-                    calculationLog += `<p class="calculation-step error">Enthalpy for reactant '${item.subst}' not found.</p>`;
-                    errorOccurred = true;
-                }
-            }
-            calculationLog += `<p><strong>ΣΔH<sub>f</sub>(reactants) = ${total_react.toFixed(3)} kJ</strong></p>`;
-
-            calculationLog += "<br><p><strong>Products:</strong></p>";
-            let total_prod = 0;
-            for (const item of products) {
-                if (item.subst in enthalpies) {
-                    const deltaH = enthalpies[item.subst];
-                    const total = item.coeff * deltaH;
-                    total_prod += total;
-                    calculationLog += `<p class="calculation-step">${item.coeff} mol × ΔH<sub>f</sub>(${item.subst}) = ${item.coeff} × ${deltaH} = ${total.toFixed(3)} kJ</p>`;
-                } else {
-                    calculationLog += `<p class="calculation-step error">Enthalpy for product '${item.subst}' not found.</p>`;
-                    errorOccurred = true;
-                }
-            }
-            calculationLog += `<p><strong>ΣΔH<sub>f</sub>(products) = ${total_prod.toFixed(3)} kJ</strong></p>`;
-
-            resultsDiv.innerHTML += calculationLog;
-
-            if (errorOccurred) {
-                resultsDiv.innerHTML += "<br><p class='error'>Calculation cannot be completed due to missing enthalpy data. Please check substance names and states (e.g., (g), (s), (l), (aq)).</p>";
-                return;
-            }
-
-            resultsDiv.innerHTML += "<br><p><strong>ΔH<sub>rxn</sub> = ΣΔH<sub>f</sub>(products) - ΣΔH<sub>f</sub>(reactants)</strong></p>";
-            resultsDiv.innerHTML += `<p class="calculation-step">ΔH<sub>rxn</sub> = ${total_prod.toFixed(3)} kJ - (${total_react.toFixed(3)} kJ)</p>`;
-            const delta = total_prod - total_react;
-            resultsDiv.innerHTML += `<p>Therefore, <span class="final-deltaH">ΔH<sub>rxn</sub> = ${delta.toFixed(3)} kJ/mol</span></p><br>`;
-
-            if (delta < 0) {
-                resultsDiv.innerHTML += "<p class='exothermic'>This reaction is EXOTHERMIC (releases heat)! </p>";
-            } else if (delta > 0) {
-                resultsDiv.innerHTML += "<p class='endothermic'>This reaction is ENDOTHERMIC (absorbs heat)! 略</p>";
-            } else {
-                resultsDiv.innerHTML += "<p class='neutral'>This reaction has no net enthalpy change (thermoneutral). 類</p>";
-            }
-        }
-
-        // Automatically run calculation for the default reaction on page load (optional)
-        // window.onload = runCalculation;
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
