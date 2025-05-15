@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canal Cleaners - Endodontist Game</title>
+    <title>Canal Cleaners Deluxe</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <header>
-            <h1>Canal Cleaners</h1>
-            <div id="score-board">Score: <span id="score">0</span></div>
+            <h1>Canal Cleaners Deluxe</h1>
+            <div id="game-stats">
+                <span id="score-board">Score: <span id="score">0</span></span> |
+                <span id="level-display">Level: <span id="current-level-text">1</span></span> |
+                <span id="timer-display">Time: <span id="time-left">--</span></span>
+            </div>
         </header>
 
         <div id="patient-info">
@@ -20,11 +24,16 @@
             </div>
             <img id="comfort-face" src="happy_tooth_face.png" alt="Comfort Face">
         </div>
+        
+        <div id="tool-info">
+            Current Tool: <span id="current-tool-text">Finder</span> (Press 'T' to switch)
+        </div>
 
         <canvas id="gameCanvas"></canvas>
+        <canvas id="collisionCanvas" style="display: none;"></canvas> <!-- Hidden canvas for collision map -->
 
         <div id="controls-info">
-            Use Arrow Keys to Move File. Press Space to Zap Bacteria.
+            Arrow Keys: Move | Space: Zap | T: Switch Tool
         </div>
 
         <div id="message-overlay" class="hidden">
