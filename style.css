@@ -15,7 +15,7 @@ body {
     border-radius: 15px;
     box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     text-align: center;
-    width: 700px; 
+    width: 700px;
 }
 
 header {
@@ -78,7 +78,7 @@ header h1 {
     border: 2px solid #00796b;
     border-radius: 10px;
     background-color: #f0f0f0;
-    width: 600px; 
+    width: 600px;
     height: 450px;
     display: block;
     margin: 0 auto 10px auto;
