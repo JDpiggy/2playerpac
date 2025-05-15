@@ -1,0 +1,134 @@
+body {
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #e0f7fa; /* Light blue, clinical but friendly */
+    margin: 0;
+    color: #333;
+}
+
+#game-container {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    width: 700px; /* Accommodate canvas and UI */
+}
+
+header {
+    margin-bottom: 15px;
+    border-bottom: 2px solid #b2ebf2;
+    padding-bottom: 10px;
+}
+
+header h1 {
+    color: #00796b; /* Teal color */
+    margin: 0 0 10px 0;
+}
+
+#score-board {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+#patient-info {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#comfort-bar-container {
+    width: 200px;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    margin: 0 10px;
+    overflow: hidden;
+    border: 1px solid #ccc;
+}
+
+#comfort-bar {
+    width: 100%; /* JS will update this */
+    height: 100%;
+    background-color: #4caf50; /* Green */
+    border-radius: 10px 0 0 10px; /* Keep left radius if bar shrinks */
+    transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+#comfort-face {
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+}
+
+#gameCanvas {
+    border: 2px solid #00796b;
+    border-radius: 10px;
+    background-color: #f0f0f0; /* Fallback if images don't load */
+    /* Background images will be set by JS */
+    width: 600px; /* Set by JS */
+    height: 450px; /* Set by JS */
+    display: block;
+    margin: 0 auto 15px auto;
+}
+
+#controls-info {
+    font-size: 0.9em;
+    color: #555;
+}
+
+/* Message Overlay */
+#message-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#message-overlay.hidden {
+    display: none;
+}
+
+#message-box {
+    background-color: white;
+    padding: 30px 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    min-width: 300px;
+}
+
+#message-box h2 {
+    margin-top: 0;
+    color: #00796b;
+}
+
+#message-box p {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+}
+
+#action-button {
+    background-color: #00796b; /* Teal */
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#action-button:hover {
+    background-color: #004d40; /* Darker Teal */
+}
