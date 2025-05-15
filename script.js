@@ -3,199 +3,262 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     const collisionCanvas = document.getElementById('collisionCanvas');
     const collisionCtx = collisionCanvas.getContext('2d');
+    const maskCanvas = document.getElementById('maskCanvas'); // For texture masking
+    const maskCtx = maskCanvas.getContext('2d');
 
+    // UI Elements
     const scoreDisplay = document.getElementById('score');
     const currentLevelText = document.getElementById('current-level-text');
     const timeLeftDisplay = document.getElementById('time-left');
     const comfortBar = document.getElementById('comfort-bar');
-    const comfortFace = document.getElementById('comfort-face');
+    const comfortFaceImg = document.getElementById('comfort-face'); // Changed variable name
     const currentToolText = document.getElementById('current-tool-text');
-    
     const messageOverlay = document.getElementById('message-overlay');
     const messageTitle = document.getElementById('message-title');
     const messageText = document.getElementById('message-text');
     const actionButton = document.getElementById('action-button');
 
+    // Canvas Setup
     const CANVAS_WIDTH = 600;
     const CANVAS_HEIGHT = 450;
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
-    collisionCanvas.width = CANVAS_WIDTH; // Must match game canvas for 1:1 collision
-    collisionCanvas.height = CANVAS_HEIGHT;
+    canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
+    collisionCanvas.width = CANVAS_WIDTH; collisionCanvas.height = CANVAS_HEIGHT;
+    maskCanvas.width = CANVAS_WIDTH; maskCanvas.height = CANVAS_HEIGHT;
 
-    const WALL_COLOR_R = 0; // Assuming black walls (R=0, G=0, B=0)
-    const WALL_COLOR_G = 0;
-    const WALL_COLOR_B = 0;
-    const PATH_COLOR_R = 255; // Assuming white paths (R=255, G=255, B=255)
-
+    // Game Constants
     const MAX_COMFORT = 100;
-    const COMFORT_DAMAGE_WALL_SMALL = 1;
-    const COMFORT_DAMAGE_WALL_LARGE = 3;
-    const COMFORT_DECREASE_RATE = 0.05; // Comfort points per second
-    
+    const COMFORT_DAMAGE_WALL_SMALL = 0.5; // Reduced damage for finer control
+    const COMFORT_DAMAGE_WALL_LARGE = 1.5;
+    const COMFORT_DECREASE_RATE_PASSIVE = 0.03; // Passive comfort decrease
+
     const BACTERIA_SIZE = 18;
     const ZAP_BASE_RADIUS = 25;
+    const CANAL_WIDTH = 25; // Width for drawing procedural canals
 
     const TOOLS = {
-        FINDER: { 
-            name: "Finder", 
-            speed: 4, 
-            zapRadiusBonus: 0, 
-            wallDamage: COMFORT_DAMAGE_WALL_SMALL, 
-            imageKey: 'endo_file_finder',
-            width: 15, height: 30
-        },
-        SHAPER: { 
-            name: "Shaper", 
-            speed: 2.5, 
-            zapRadiusBonus: 10, 
-            wallDamage: COMFORT_DAMAGE_WALL_LARGE, 
-            imageKey: 'endo_file_shaper',
-            width: 17, height: 34
-        }
+        FINDER: { name: "Finder", speed: 3.5, zapRadiusBonus: 0, wallDamage: COMFORT_DAMAGE_WALL_SMALL, imageKey: 'endo_file_finder', width: 15, height: 30 },
+        SHAPER: { name: "Shaper", speed: 2.2, zapRadiusBonus: 10, wallDamage: COMFORT_DAMAGE_WALL_LARGE, imageKey: 'endo_file_shaper', width: 17, height: 34 }
     };
     let currentTool = TOOLS.FINDER;
 
+    // Game State Variables
     let score = 0;
     let currentComfort = MAX_COMFORT;
     let player = { x: CANVAS_WIDTH / 2, y: 50, width: currentTool.width, height: currentTool.height };
     let bacteria = [];
     let accessTargets = [];
     let keysPressed = {};
-    let gameState = 'LOADING'; // LOADING, MAIN_MENU, LEVEL_INTRO, ACCESS_MINIGAME, PLAYING, FILLING_PHASE, LEVEL_COMPLETE, GAME_OVER, GAME_WON
+    let gameState = 'LOADING';
     let currentLevelIndex = 0;
     let levelTimer = 0;
-    let gameLoopInterval;
-    let lastTime = 0;
+    let gameLoopIntervalId; // Renamed for clarity
+    let lastTimestamp = 0; // Renamed for clarity
+    let currentProceduralLevelData = {}; // To store generated paths, etc.
 
-    const levels = [
-        {
-            name: "Molar Madness",
-            bacteriaCount: 8,
-            timeLimit: 120, // seconds
-            toothBgKey: 'tooth_bg_level1',
-            collisionMapKey: 'collision_map_level1',
-            pulpInflamedKey: 'pulp_inflamed_level1',
-            guttaPerchaKey: 'gutta_percha_fill_level1',
-            accessPoints: [{x: 300, y:100}, {x:250, y:150}, {x:350, y:150}] // Example points
-        },
-        {
-            name: "Incisor Intensity",
-            bacteriaCount: 12,
-            timeLimit: 90,
-            toothBgKey: 'tooth_bg_level2',
-            collisionMapKey: 'collision_map_level2',
-            pulpInflamedKey: 'pulp_inflamed_level2',
-            guttaPerchaKey: 'gutta_percha_fill_level2',
-            accessPoints: [{x: 300, y:80}, {x:300, y:130}]
-        }
-        // Add more levels here
+    // --- Asset Paths (IMPORTANT: Update if your folder structure is different) ---
+    const ASSET_PATH = 'assets/tiles/';
+
+    // Level Configuration for Procedural Generation
+    const gameLevels = [ // Renamed to avoid conflict
+        { name: "Molar Initiation", toothImageKey: 'tooth_outline_molar', numCanals: 2, bacteriaCount: 6, timeLimit: 120, accessPointsCount: 2, canalStartPoints: [{x: 280, y: 150}, {x: 320, y: 150}]},
+        { name: "Molar Challenge", toothImageKey: 'tooth_outline_molar', numCanals: 3, bacteriaCount: 10, timeLimit: 100, accessPointsCount: 3, canalStartPoints: [{x: 270, y: 150}, {x: 300, y: 140}, {x: 330, y: 150}]},
+        // Add more level configurations here
     ];
 
     // --- Asset Loading ---
     const images = {
-        endo_file_finder: new Image(), endo_file_shaper: new Image(),
-        bacteria_1: new Image(), bacteria_2: new Image(),
-        happy_tooth_face: new Image(), sad_tooth_face: new Image(),
+        // Using your filenames
         access_target: new Image(),
-        // Level specific images will be loaded dynamically
+        bacteria_1: new Image(),
+        bacteria_2: new Image(),
+        endo_file_finder: new Image(),
+        endo_file_shaper: new Image(),
+        happy_tooth_face: new Image(),
+        inflammation_texture_generic: new Image(),
+        sad_tooth_face: new Image(),
+        tooth_outline_molar: new Image(),
+        // Add tooth_outline_incisor etc. if you make them
     };
-    const sounds = {
-        drill: null, zap: null, ouch: null, success_level: null, 
+    const sounds = { // Placeholder for sound effects
+        drill: null, zap: null, ouch: null, success_level: null,
         success_game: null, game_over: null, wall_hit: null, tool_switch: null,
         timer_tick: null, background_music: null
     };
-
-    let assetsToLoad = 0;
-    let assetsLoaded = 0;
+    let assetsToLoadCount = 0;
+    let assetsLoadedCount = 0;
 
     function countAssets() {
-        assetsToLoad = Object.keys(images).length + Object.keys(sounds).length;
-        levels.forEach(level => {
-            assetsToLoad += 4; // tooth_bg, collision_map, pulp_inflamed, gutta_percha
-        });
+        assetsToLoadCount = Object.keys(images).length + Object.keys(sounds).filter(key => sounds[key] !== null).length; // Only count actual sound objects if you implement them
     }
 
-    function assetLoaded(type, name) {
-        assetsLoaded++;
-        console.log(`${type} loaded: ${name} (${assetsLoaded}/${assetsToLoad})`);
-        if (assetsLoaded === assetsToLoad) {
+    function assetLoadedCallback(type, name) {
+        assetsLoadedCount++;
+        console.log(`${type} loaded: ${name} (${assetsLoadedCount}/${assetsToLoadCount})`);
+        if (assetsLoadedCount === assetsToLoadCount) {
             console.log("All assets loaded.");
-            // Initialize level-specific images in the main images object for easy access
-            levels.forEach((level, index) => {
-                images[level.toothBgKey] = new Image(); images[level.toothBgKey].src = `${level.toothBgKey}.png`;
-                images[level.collisionMapKey] = new Image(); images[level.collisionMapKey].src = `${level.collisionMapKey}.png`;
-                images[level.pulpInflamedKey] = new Image(); images[level.pulpInflamedKey].src = `${level.pulpInflamedKey}.png`;
-                images[level.guttaPerchaKey] = new Image(); images[level.guttaPerchaKey].src = `${level.guttaPerchaKey}.png`;
-            });
-            // Wait for dynamically added level images to confirm load (simple timeout for demo)
-            // A more robust solution would use their onload events
-            setTimeout(() => {
-                 changeGameState('MAIN_MENU');
-            }, 1000); // Give time for level-specific images to load
+            comfortFaceImg.src = images.happy_tooth_face.src; // Set initial comfort face
+            changeGameState('MAIN_MENU');
         }
         updateLoadingProgress();
     }
-    
+
     function updateLoadingProgress() {
         if (gameState === 'LOADING') {
             messageTitle.textContent = "Loading Assets...";
-            messageText.textContent = `Loaded ${assetsLoaded} of ${assetsToLoad}`;
+            messageText.textContent = `Loaded ${assetsLoadedCount} of ${assetsToLoadCount}`;
             actionButton.style.display = 'none';
         }
     }
 
-    function loadAssets() {
+    function loadGameAssets() {
         changeGameState('LOADING');
-        updateLoadingProgress();
+        countAssets(); // Count first
+        updateLoadingProgress(); // Show initial loading message
 
-        // Load general images
-        images.endo_file_finder.src = 'endo_file_finder.png'; images.endo_file_finder.onload = () => assetLoaded('Image', 'endo_file_finder');
-        images.endo_file_shaper.src = 'endo_file_shaper.png'; images.endo_file_shaper.onload = () => assetLoaded('Image', 'endo_file_shaper');
-        images.bacteria_1.src = 'bacteria_1.png'; images.bacteria_1.onload = () => assetLoaded('Image', 'bacteria_1');
-        images.bacteria_2.src = 'bacteria_2.png'; images.bacteria_2.onload = () => assetLoaded('Image', 'bacteria_2'); // Optional
-        images.happy_tooth_face.src = 'happy_tooth_face.png'; images.happy_tooth_face.onload = () => { assetLoaded('Image', 'happy_tooth_face'); comfortFace.src = images.happy_tooth_face.src;};
-        images.sad_tooth_face.src = 'sad_tooth_face.png'; images.sad_tooth_face.onload = () => assetLoaded('Image', 'sad_tooth_face');
-        images.access_target.src = 'access_target.png'; images.access_target.onload = () => assetLoaded('Image', 'access_target');
+        // Load images with new paths and filenames
+        images.access_target.src = `${ASSET_PATH}access_target-removebg-preview.png`; images.access_target.onload = () => assetLoadedCallback('Image', 'access_target');
+        images.bacteria_1.src = `${ASSET_PATH}bacteria_1-removebg-preview.png`; images.bacteria_1.onload = () => assetLoadedCallback('Image', 'bacteria_1');
+        images.bacteria_2.src = `${ASSET_PATH}bacteria_2-removebg-preview.png`; images.bacteria_2.onload = () => assetLoadedCallback('Image', 'bacteria_2');
+        images.endo_file_finder.src = `${ASSET_PATH}endo_file_finder-removebg-preview.png`; images.endo_file_finder.onload = () => assetLoadedCallback('Image', 'endo_file_finder');
+        images.endo_file_shaper.src = `${ASSET_PATH}endo_file_shaper-removebg-preview.png`; images.endo_file_shaper.onload = () => assetLoadedCallback('Image', 'endo_file_shaper');
+        images.happy_tooth_face.src = `${ASSET_PATH}happy_tooth_face-removebg-preview.png`; images.happy_tooth_face.onload = () => assetLoadedCallback('Image', 'happy_tooth_face');
+        images.inflammation_texture_generic.src = `${ASSET_PATH}inflammation_texture_generic.png`; images.inflammation_texture_generic.onload = () => assetLoadedCallback('Image', 'inflammation_texture_generic');
+        images.sad_tooth_face.src = `${ASSET_PATH}sad_tooth_face-removebg-preview.png`; images.sad_tooth_face.onload = () => assetLoadedCallback('Image', 'sad_tooth_face');
+        images.tooth_outline_molar.src = `${ASSET_PATH}tooth_outline_molar.png`; images.tooth_outline_molar.onload = () => assetLoadedCallback('Image', 'tooth_outline_molar');
 
-        // Load level-specific image paths (actual loading happens when assetLoaded confirms all general assets)
-        levels.forEach(level => {
-            // These will be properly loaded later, just counting them now
-            // The src setting will happen after all base images are loaded.
-        });
-
-
-        // Load sounds
-        const soundFiles = {
-            drill: 'drill_sound.mp3', zap: 'zap_sound.mp3', ouch: 'ouch_sound.mp3', 
-            success_level: 'success_level_sound.mp3', success_game: 'success_game_sound.mp3', 
-            game_over: 'game_over_sound.mp3', wall_hit: 'wall_hit_sound.mp3', 
-            tool_switch: 'tool_switch_sound.mp3', timer_tick: 'timer_tick_low_sound.mp3',
-            background_music: 'background_music.mp3'
-        };
-        for (const key in soundFiles) {
-            sounds[key] = new Audio(soundFiles[key]);
-            sounds[key].oncanplaythrough = () => assetLoaded('Sound', key);
-            sounds[key].onerror = () => { console.warn(`Could not load sound: ${key}`); assetLoaded('Sound (Error)', key); }; // Still count it
-        }
-        if(sounds.background_music) sounds.background_music.loop = true;
+        // Placeholder for sound loading - implement if you have sounds
+        // for (const key in sounds) { if (sounds[key] !== null) { sounds[key] = new Audio(`sounds/${key}.mp3`); sounds[key].oncanplaythrough = () => assetLoadedCallback('Sound', key); }}
     }
-    
+
     function playSound(soundKey, volume = 0.7) {
-        if (sounds[soundKey]) {
+        if (sounds[soundKey] && sounds[soundKey].play) {
             sounds[soundKey].currentTime = 0;
             sounds[soundKey].volume = volume;
             sounds[soundKey].play().catch(e => console.warn("Sound play interrupted or failed:", e));
         }
     }
 
+    // --- Procedural Generation ---
+    function generateProceduralLevel(levelConfig) {
+        currentProceduralLevelData = {
+            config: levelConfig,
+            canalPaths: [],
+            accessPoints: [],
+            bacteriaSpawns: []
+        };
+
+        // 1. Generate Canal Paths (Simple Random Walk Example)
+        for (let i = 0; i < levelConfig.numCanals; i++) {
+            const startPoint = levelConfig.canalStartPoints[i] || { x: CANVAS_WIDTH / 2 + (i - levelConfig.numCanals/2)*40, y: 150 };
+            const path = generateSingleCanalPath(startPoint.x, startPoint.y, 15 + Math.random() * 10, CANAL_WIDTH); // Length 15-25 steps
+            currentProceduralLevelData.canalPaths.push(path);
+        }
+
+        // 2. Generate Access Points (around pulp chamber area - needs refinement based on actual tooth outline)
+        const pulpChamberCenter = { x: CANVAS_WIDTH / 2, y: 120 }; // Approximate
+        for (let i = 0; i < levelConfig.accessPointsCount; i++) {
+            currentProceduralLevelData.accessPoints.push({
+                x: pulpChamberCenter.x + (Math.random() - 0.5) * 60,
+                y: pulpChamberCenter.y + (Math.random() - 0.5) * 30,
+                radius: 15,
+                hit: false
+            });
+        }
+        accessTargets = currentProceduralLevelData.accessPoints; // For existing minigame logic
+
+        // 3. Generate Collision Map from Paths
+        generateCollisionMapFromPaths(currentProceduralLevelData.canalPaths);
+
+        // 4. Spawn Bacteria along paths (after collision map is ready)
+        spawnBacteriaProcedural(levelConfig.bacteriaCount, currentProceduralLevelData.canalPaths);
+    }
+
+    function generateSingleCanalPath(startX, startY, numSteps, stepSize) {
+        let path = [{ x: startX, y: startY }];
+        let currentX = startX;
+        let currentY = startY;
+
+        for (let i = 0; i < numSteps; i++) {
+            let angle = Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8; // Bias downwards
+            if (i < numSteps / 3 && Math.random() < 0.3) { // Initial outward spread
+                 angle += (Math.random() < 0.5 ? -1 : 1) * Math.PI / 3;
+            }
+
+            let nextX = currentX + Math.cos(angle) * stepSize * (0.7 + Math.random() * 0.6); // Vary step length
+            let nextY = currentY + Math.sin(angle) * stepSize * (0.7 + Math.random() * 0.6);
+
+            // Simple boundary to keep canals somewhat contained (improve with actual tooth shape)
+            nextX = Math.max(50, Math.min(CANVAS_WIDTH - 50, nextX));
+            nextY = Math.max(startY - 20, Math.min(CANVAS_HEIGHT - 50, nextY));
+
+            currentX = nextX;
+            currentY = nextY;
+            path.push({ x: currentX, y: currentY });
+        }
+        return path;
+    }
+
+    function generateCollisionMapFromPaths(paths) {
+        collisionCtx.fillStyle = 'black'; // Walls
+        collisionCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        collisionCtx.strokeStyle = 'white'; // Passable paths
+        collisionCtx.lineWidth = CANAL_WIDTH + 4; // +4 for a little buffer for player collision
+        collisionCtx.lineCap = 'round';
+        collisionCtx.lineJoin = 'round';
+
+        paths.forEach(path => {
+            if (path.length < 2) return;
+            collisionCtx.beginPath();
+            collisionCtx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                collisionCtx.lineTo(path[i].x, path[i].y);
+            }
+            collisionCtx.stroke();
+        });
+    }
+
+    function spawnBacteriaProcedural(count, paths) {
+        bacteria = [];
+        let attempts = 0;
+        while (bacteria.length < count && attempts < 500) {
+            attempts++;
+            if (paths.length === 0 || paths[0].length === 0) break; // No paths to spawn on
+
+            const randomPath = paths[Math.floor(Math.random() * paths.length)];
+            if (randomPath.length < 2) continue;
+            const randomSegmentIndex = Math.floor(Math.random() * (randomPath.length -1));
+            const p1 = randomPath[randomSegmentIndex];
+            const p2 = randomPath[randomSegmentIndex+1];
+            
+            // Interpolate a point on the segment
+            const t = Math.random();
+            const potentialX = p1.x + (p2.x - p1.x) * t - BACTERIA_SIZE / 2;
+            const potentialY = p1.y + (p2.y - p1.y) * t - BACTERIA_SIZE / 2;
+
+
+            // Check against collision map to ensure it's in a passable area
+            if (!isWall(potentialX + BACTERIA_SIZE / 2, potentialY + BACTERIA_SIZE / 2)) {
+                bacteria.push({
+                    x: potentialX, y: potentialY,
+                    width: BACTERIA_SIZE, height: BACTERIA_SIZE,
+                    type: Math.random() > 0.5 ? 'bacteria_1' : 'bacteria_2',
+                    vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, // Slower movement
+                    moveCooldown: Math.random() * 2 + 1
+                });
+            }
+        }
+         if (attempts >= 500 && bacteria.length < count) {
+            console.warn("Could not spawn all bacteria procedurally.");
+        }
+    }
+
+
     // --- Game State Management ---
     function changeGameState(newState) {
         gameState = newState;
         console.log("Game state changed to: " + gameState);
-        messageOverlay.classList.add('hidden'); // Hide message by default
-
-        if (gameLoopInterval) clearInterval(gameLoopInterval); // Clear previous interval
+        messageOverlay.classList.add('hidden');
+        if (gameLoopIntervalId) clearInterval(gameLoopIntervalId);
 
         switch (gameState) {
             case 'LOADING':
@@ -204,42 +267,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'MAIN_MENU':
                 if (sounds.background_music && sounds.background_music.paused) playSound('background_music', 0.3);
-                showMessage("Canal Cleaners Deluxe", "Ready to save some teeth?", "Start Game", () => {
-                    currentLevelIndex = 0;
-                    score = 0;
+                showMessage("Canal Cleaners Deluxe", "Ready to save some structures?", "Start Game", () => {
+                    currentLevelIndex = 0; score = 0;
                     changeGameState('LEVEL_INTRO');
                 });
                 break;
             case 'LEVEL_INTRO':
-                const level = levels[currentLevelIndex];
-                showMessage(`Level ${currentLevelIndex + 1}: ${level.name}`, `Bacteria: ${level.bacteriaCount}, Time: ${level.timeLimit}s. Get ready!`, "Begin Access", () => {
-                    setupLevel();
+                const levelConfig = gameLevels[currentLevelIndex];
+                showMessage(`Level ${currentLevelIndex + 1}: ${levelConfig.name}`, `Bacteria: ${levelConfig.bacteriaCount}, Time: ${levelConfig.timeLimit}s. Get ready!`, "Begin Access", () => {
+                    setupProceduralLevel();
                     changeGameState('ACCESS_MINIGAME');
                 });
                 break;
             case 'ACCESS_MINIGAME':
-                startAccessMinigame();
-                gameLoopInterval = setInterval(gameLoop, 1000 / 60); // 60 FPS
+                // Access targets already set up in setupProceduralLevel
+                hideMessage();
+                gameLoopIntervalId = setInterval(mainGameLoop, 1000 / 60); // 60 FPS
                 break;
             case 'PLAYING':
                 hideMessage();
-                // gameLoopInterval is already running from ACCESS_MINIGAME or resumed
-                if (!gameLoopInterval) gameLoopInterval = setInterval(gameLoop, 1000 / 60);
-                lastTime = performance.now(); // Reset delta time calculation
+                if (!gameLoopIntervalId) gameLoopIntervalId = setInterval(mainGameLoop, 1000 / 60);
+                lastTimestamp = performance.now();
                 break;
             case 'FILLING_PHASE':
-                // Simplified filling phase for now
-                showMessage("Canal Cleaned!", "Excellent work. Click to fill the canal.", "Fill Canal", () => {
+                showMessage("Structure Cleaned!", "Excellent work. Click to fill.", "Fill Structure", () => {
                     playSound('success_level');
                     changeGameState('LEVEL_COMPLETE');
                 });
                 break;
             case 'LEVEL_COMPLETE':
-                score += Math.max(0, Math.floor(levelTimer * 2)); // Time bonus
-                score += Math.max(0, Math.floor(currentComfort)); // Comfort bonus
-                updateUI();
-                if (currentLevelIndex < levels.length - 1) {
-                    showMessage("Level Complete!", `Great job! Score: ${score}.`, "Next Patient", () => {
+                score += Math.max(0, Math.floor(levelTimer * 2)) + Math.max(0, Math.floor(currentComfort));
+                updateUIDisplay();
+                if (currentLevelIndex < gameLevels.length - 1) {
+                    showMessage("Level Complete!", `Great job! Score: ${score}.`, "Next Structure", () => {
                         currentLevelIndex++;
                         changeGameState('LEVEL_INTRO');
                     });
@@ -249,394 +309,313 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'GAME_WON':
                 playSound('success_game');
-                showMessage("Congratulations!", `You've saved all the teeth! Final Score: ${score}`, "Play Again?", () => {
+                showMessage("Congratulations!", `You've restored all structures! Final Score: ${score}`, "Play Again?", () => {
                     changeGameState('MAIN_MENU');
                 });
                 break;
             case 'GAMEOVER':
                 playSound('game_over');
-                let reason = currentComfort <= 0 ? "Patient comfort reached zero!" : "Time ran out!";
-                showMessage("Game Over!", `${reason} Final Score: ${score}`, "Try Again", () => {
-                    // Reset to current level intro or main menu
-                    currentLevelIndex = 0; // Or keep currentLevelIndex to retry same level
-                    score = 0;
-                    changeGameState('MAIN_MENU'); // Or LEVEL_INTRO to retry
+                let reason = currentComfort <= 0 ? "Comfort proxy reached zero!" : "Time ran out!";
+                showMessage("Session Over!", `${reason} Final Score: ${score}`, "Try Again", () => {
+                    currentLevelIndex = 0; score = 0;
+                    changeGameState('MAIN_MENU');
                 });
                 break;
         }
-        updateUI();
+        updateUIDisplay();
     }
 
-    // --- Level Setup ---
-    function setupLevel() {
-        const level = levels[currentLevelIndex];
+    function setupProceduralLevel() {
+        const levelConfig = gameLevels[currentLevelIndex];
         currentComfort = MAX_COMFORT;
-        levelTimer = level.timeLimit;
+        levelTimer = levelConfig.timeLimit;
         player.x = CANVAS_WIDTH / 2 - player.width / 2;
-        player.y = 60; // Initial safe Y position
+        player.y = 80; // Initial player Y
         keysPressed = {};
-        
-        // Load collision map onto hidden canvas
-        collisionCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        if (images[level.collisionMapKey] && images[level.collisionMapKey].complete) {
-            collisionCtx.drawImage(images[level.collisionMapKey], 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        } else {
-            console.error("Collision map not loaded for level: " + level.name);
-            // Fallback: make entire canvas white (passable) - not ideal
-            collisionCtx.fillStyle = 'white';
-            collisionCtx.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-        }
 
-
-        spawnBacteria();
-        updateUI();
+        generateProceduralLevel(levelConfig); // This now sets up paths, access points, collision, bacteria
+        updateUIDisplay();
     }
 
-    function startAccessMinigame() {
-        const level = levels[currentLevelIndex];
-        accessTargets = level.accessPoints.map(p => ({ ...p, radius: 15, hit: false }));
-        hideMessage(); // Ensure no other message is showing
+    // --- Collision Detection (using the dynamically generated collisionCanvas) ---
+    function isWall(x, y) {
+        if (x < 0 || x >= CANVAS_WIDTH || y < 0 || y >= CANVAS_HEIGHT) return true;
+        const pixelData = collisionCtx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        // Assuming black (0,0,0) is wall, anything else (white path) is not.
+        return pixelData[0] < 128 && pixelData[1] < 128 && pixelData[2] < 128;
     }
-
-    function spawnBacteria() {
-        bacteria = [];
-        const level = levels[currentLevelIndex];
-        let attempts = 0;
-        while (bacteria.length < level.bacteriaCount && attempts < 500) {
-            attempts++;
-            const potentialX = Math.random() * (CANVAS_WIDTH - BACTERIA_SIZE);
-            const potentialY = Math.random() * (CANVAS_HEIGHT - BACTERIA_SIZE);
-
-            if (!isWall(potentialX + BACTERIA_SIZE / 2, potentialY + BACTERIA_SIZE / 2, true)) { // Check center
-                bacteria.push({
-                    x: potentialX,
-                    y: potentialY,
-                    width: BACTERIA_SIZE,
-                    height: BACTERIA_SIZE,
-                    type: Math.random() > 0.5 ? 'bacteria_1' : 'bacteria_2',
-                    vx: (Math.random() - 0.5) * 1, // Slow random movement
-                    vy: (Math.random() - 0.5) * 1,
-                    moveCooldown: 0
-                });
-            }
-        }
-        if (attempts >= 500 && bacteria.length < level.bacteriaCount) {
-            console.warn("Could not spawn all bacteria for level. Check collision map and spawn logic.");
-        }
-    }
-    
-    // --- Collision Detection ---
-    function isWall(x, y, isBacteriaSpawning = false) {
-        if (x < 0 || x >= CANVAS_WIDTH || y < 0 || y >= CANVAS_HEIGHT) return true; // Out of bounds
-
-        // For player, check a few points around its bounding box for more accuracy
-        // For bacteria spawning, just check the single point.
-        const pointsToCheck = isBacteriaSpawning ? [{x,y}] : [
-            { x: x - player.width / 4, y: y - player.height / 4 }, // Top-leftish
-            { x: x + player.width / 4, y: y - player.height / 4 }, // Top-rightish
-            { x: x - player.width / 4, y: y + player.height / 4 }, // Bottom-leftish
-            { x: x + player.width / 4, y: y + player.height / 4 }, // Bottom-rightish
-            { x: x, y: y } // Center
-        ];
-        
-        for (const p of pointsToCheck) {
-            if (p.x < 0 || p.x >= CANVAS_WIDTH || p.y < 0 || p.y >= CANVAS_HEIGHT) continue; // Skip OOB check points
-
-            const pixelData = collisionCtx.getImageData(Math.floor(p.x), Math.floor(p.y), 1, 1).data;
-            // Check if pixel is NOT the path color (e.g., white)
-            // This simple check assumes path is pure white (255,255,255) and walls are black (0,0,0)
-            // More robust: if (pixelData[0] === WALL_COLOR_R && pixelData[1] === WALL_COLOR_G && pixelData[2] === WALL_COLOR_B)
-            if (pixelData[0] < 128 && pixelData[1] < 128 && pixelData[2] < 128) { // Assuming dark colors are walls
-                 return true; // It's a wall
-            }
-        }
-        return false; // It's a path
-    }
-
 
     // --- Game Loop ---
-    function update(deltaTime) {
+    function updateGameLogic(deltaTime) {
         if (gameState === 'PLAYING') {
-            // Timer
             levelTimer -= deltaTime;
-            if (levelTimer <= 0) {
-                levelTimer = 0;
-                changeGameState('GAMEOVER');
-                return;
-            }
-            if (levelTimer < 10 && Math.floor(levelTimer) !== Math.floor(levelTimer + deltaTime)) {
-                 playSound('timer_tick', 0.5);
-            }
+            if (levelTimer <= 0) { levelTimer = 0; changeGameState('GAMEOVER'); return; }
+            if (levelTimer < 10 && Math.floor(levelTimer) !== Math.floor(levelTimer + deltaTime)) playSound('timer_tick', 0.5);
 
-            // Comfort decrease over time
-            currentComfort -= COMFORT_DECREASE_RATE * deltaTime;
+            currentComfort -= COMFORT_DECREASE_RATE_PASSIVE * deltaTime;
 
             // Player movement
-            let dx = 0;
-            let dy = 0;
+            let dx = 0, dy = 0;
             if (keysPressed['ArrowUp'] || keysPressed['w']) dy -= currentTool.speed;
             if (keysPressed['ArrowDown'] || keysPressed['s']) dy += currentTool.speed;
             if (keysPressed['ArrowLeft'] || keysPressed['a']) dx -= currentTool.speed;
             if (keysPressed['ArrowRight'] || keysPressed['d']) dx += currentTool.speed;
 
-            const newX = player.x + dx;
-            const newY = player.y + dy;
-            
-            // Collision check before moving
-            // Check center of player's new position
-            const collisionPointX = newX + player.width / 2;
-            const collisionPointY = newY + player.height / 2;
+            const targetX = player.x + dx;
+            const targetY = player.y + dy;
 
-            if (!isWall(collisionPointX, newY + player.height/2)) {
-                player.y = newY;
-            } else if (dy !== 0) {
-                currentComfort -= currentTool.wallDamage;
-                playSound('wall_hit', 0.4);
-            }
-
-            if (!isWall(newX + player.width/2, collisionPointY)) { // check Y with the *original* Y if X is blocked
-                player.x = newX;
-            } else if (dx !== 0) { // If X movement was attempted and failed
-                 currentComfort -= currentTool.wallDamage;
-                 playSound('wall_hit', 0.4);
-            }
+            // Check multiple points around player for collision
+            const checkPoints = [
+                { x: targetX + player.width / 2, y: targetY + player.height / 2 }, // Center
+                { x: targetX, y: targetY }, // Top-left
+                { x: targetX + player.width, y: targetY }, // Top-right
+                { x: targetX, y: targetY + player.height }, // Bottom-left
+                { x: targetX + player.width, y: targetY + player.height }  // Bottom-right
+            ];
             
-            // Clamp player to canvas boundaries (should be handled by collision map, but as a fallback)
+            let wallHitX = false;
+            let wallHitY = false;
+
+            // Check X movement
+            let canMoveX = true;
+            for(const p of checkPoints) {
+                if(isWall(targetX + (p.x - player.x - dx), player.y + (p.y - player.y))) { // Check X with current Y
+                    canMoveX = false;
+                    wallHitX = true;
+                    break;
+                }
+            }
+            if(canMoveX) player.x = targetX;
+            else if (dx !== 0) { currentComfort -= currentTool.wallDamage; playSound('wall_hit', 0.4); }
+            
+            // Check Y movement
+            let canMoveY = true;
+             for(const p of checkPoints) {
+                if(isWall(player.x + (p.x - player.x), targetY + (p.y - player.y - dy))) { // Check Y with current X (or new X if moved)
+                    canMoveY = false;
+                    wallHitY = true;
+                    break;
+                }
+            }
+            if(canMoveY) player.y = targetY;
+            else if (dy !== 0) { currentComfort -= currentTool.wallDamage; playSound('wall_hit', 0.4); }
+
+
             player.x = Math.max(0, Math.min(CANVAS_WIDTH - player.width, player.x));
             player.y = Math.max(0, Math.min(CANVAS_HEIGHT - player.height, player.y));
-
 
             // Bacteria movement
             bacteria.forEach(b => {
                 b.moveCooldown -= deltaTime;
-                if (b.moveCooldown <=0) {
-                    b.vx = (Math.random() - 0.5) * 1; // New direction
-                    b.vy = (Math.random() - 0.5) * 1;
-                    b.moveCooldown = Math.random() * 2 + 1; // Move every 1-3 seconds
+                if (b.moveCooldown <= 0) {
+                    b.vx = (Math.random() - 0.5) * 0.5; b.vy = (Math.random() - 0.5) * 0.5;
+                    b.moveCooldown = Math.random() * 2 + 1;
                 }
-
                 const nextBacteriaX = b.x + b.vx;
                 const nextBacteriaY = b.y + b.vy;
-                if (!isWall(nextBacteriaX + b.width / 2, nextBacteriaY + b.height / 2, true)) {
-                    b.x = nextBacteriaX;
-                    b.y = nextBacteriaY;
-                } else { // Hit wall, reverse direction slightly randomized
-                    b.vx = -b.vx * (Math.random()*0.5 + 0.5) ;
-                    b.vy = -b.vy * (Math.random()*0.5 + 0.5) ;
-                }
-                // Clamp bacteria to canvas as a safety
+                if (!isWall(nextBacteriaX + b.width / 2, nextBacteriaY + b.height / 2)) {
+                    b.x = nextBacteriaX; b.y = nextBacteriaY;
+                } else { b.vx *= -1; b.vy *= -1; }
                 b.x = Math.max(0, Math.min(CANVAS_WIDTH - b.width, b.x));
                 b.y = Math.max(0, Math.min(CANVAS_HEIGHT - b.height, b.y));
             });
 
-
-            // Zapping bacteria
+            // Zapping
             if (keysPressed[' '] || keysPressed['Spacebar']) {
-                let bacteriaZappedThisFrame = false;
-                const zapEffectiveRadius = ZAP_BASE_RADIUS + currentTool.zapRadiusBonus;
+                let zapped = false;
+                const zapRadius = ZAP_BASE_RADIUS + currentTool.zapRadiusBonus;
                 bacteria = bacteria.filter(b => {
-                    const distX = (player.x + player.width / 2) - (b.x + b.width / 2);
-                    const distY = (player.y + player.height / 2) - (b.y + b.height / 2);
-                    const distance = Math.sqrt(distX * distX + distY * distY);
-                    if (distance < zapEffectiveRadius + b.width / 2) {
-                        score += 10;
-                        bacteriaZappedThisFrame = true;
-                        return false; // Remove bacteria
-                    }
-                    return true; // Keep bacteria
+                    const dist = Math.hypot((player.x + player.width / 2) - (b.x + b.width / 2), (player.y + player.height / 2) - (b.y + b.height / 2));
+                    if (dist < zapRadius + b.width / 2) { score += 10; zapped = true; return false; }
+                    return true;
                 });
-                if (bacteriaZappedThisFrame) {
-                    playSound('zap');
-                }
-                keysPressed[' '] = false; 
-                keysPressed['Spacebar'] = false;
+                if (zapped) playSound('zap');
+                keysPressed[' '] = keysPressed['Spacebar'] = false;
             }
 
-            // Check win/lose conditions
-            if (currentComfort <= 0) {
-                currentComfort = 0;
-                playSound('ouch', 1.0);
-                changeGameState('GAMEOVER');
-                return;
-            }
-            if (bacteria.length === 0) {
-                changeGameState('FILLING_PHASE');
-                return;
-            }
-
-        } else if (gameState === 'ACCESS_MINIGAME') {
-            // No updates needed here, interaction is click-based handled by event listener
+            if (currentComfort <= 0) { currentComfort = 0; playSound('ouch', 1.0); changeGameState('GAMEOVER'); return; }
+            if (bacteria.length === 0) { changeGameState('FILLING_PHASE'); return; }
         }
-        updateUI();
+        updateUIDisplay();
     }
 
-    function draw() {
+    function drawGame() {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        const level = levels[currentLevelIndex];
+        const levelConf = currentProceduralLevelData.config;
 
-        // Draw tooth background
-        if (images[level.toothBgKey] && images[level.toothBgKey].complete) {
-            ctx.drawImage(images[level.toothBgKey], 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        } else {
-            ctx.fillStyle = '#DDD'; // Fallback
-            ctx.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+        // 1. Draw Tooth Outline
+        if (levelConf && images[levelConf.toothImageKey] && images[levelConf.toothImageKey].complete) {
+            // Center the tooth outline image (assuming it's smaller than canvas)
+            const img = images[levelConf.toothImageKey];
+            const imgX = (CANVAS_WIDTH - img.width) / 2;
+            const imgY = (CANVAS_HEIGHT - img.height) / 2;
+            ctx.drawImage(img, imgX, imgY);
+        } else { // Fallback if image not loaded or not specified
+            ctx.fillStyle = '#E0E0E0';
+            ctx.fillRect(50, 50, CANVAS_WIDTH - 100, CANVAS_HEIGHT - 100); // Generic box
         }
 
-        // Draw inflammation
-        if (gameState !== 'LEVEL_COMPLETE' && gameState !== 'GAME_WON' && images[level.pulpInflamedKey] && images[level.pulpInflamedKey].complete) {
-             const inflammationAlpha = Math.max(0, 1 - (currentComfort / MAX_COMFORT) * 0.8); // More inflamed as comfort drops
-             ctx.globalAlpha = Math.min(0.8, inflammationAlpha + 0.2); // Ensure some inflammation is always visible during play
-             if (gameState === 'ACCESS_MINIGAME') ctx.globalAlpha = 0.6; // Consistent for access phase
-             ctx.drawImage(images[level.pulpInflamedKey], 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-             ctx.globalAlpha = 1;
-        }
-        
-        // Draw Gutta Percha if level complete
-        if ((gameState === 'LEVEL_COMPLETE' || gameState === 'GAME_WON' && currentLevelIndex === levels.length -1 ) && images[level.guttaPerchaKey] && images[level.guttaPerchaKey].complete) {
-             ctx.drawImage(images[level.guttaPerchaKey], 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        // 2. Draw Procedural Canals
+        const paths = currentProceduralLevelData.canalPaths || [];
+
+        // Create Mask for textured fill (Inflammation / Gutta Percha)
+        maskCtx.clearRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
+        maskCtx.fillStyle = 'black'; // Mask is black by default
+        maskCtx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
+        if (paths.length > 0) {
+            maskCtx.strokeStyle = 'white'; // Draw paths in white on mask
+            maskCtx.fillStyle = 'white';   // Fill paths in white on mask
+            maskCtx.lineWidth = CANAL_WIDTH;
+            maskCtx.lineCap = 'round';
+            maskCtx.lineJoin = 'round';
+            paths.forEach(path => {
+                if (path.length < 2) return;
+                maskCtx.beginPath();
+                maskCtx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) maskCtx.lineTo(path[i].x, path[i].y);
+                maskCtx.stroke(); // Stroke to get the width
+                // For filling gaps in strokes if any (optional, stroke usually suffices)
+                // path.forEach(p => { maskCtx.beginPath(); maskCtx.arc(p.x, p.y, CANAL_WIDTH/2, 0, Math.PI*2); maskCtx.fill(); });
+            });
         }
 
 
+        if (gameState === 'PLAYING' || gameState === 'ACCESS_MINIGAME' || gameState === 'GAMEOVER') {
+            // Draw healthy canal base color first (light pink)
+            ctx.strokeStyle = '#FFC0CB'; // Light Pink
+            ctx.lineWidth = CANAL_WIDTH;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            paths.forEach(path => {
+                if (path.length < 2) return;
+                ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+            });
+
+            // Draw Inflammation using generic texture and mask
+            if (images.inflammation_texture_generic && images.inflammation_texture_generic.complete) {
+                const inflammationAlpha = Math.min(0.7, Math.max(0.1, 1 - (currentComfort / MAX_COMFORT)));
+                ctx.globalAlpha = inflammationAlpha;
+                // Tile the texture over the whole canvas temporarily
+                const pattern = ctx.createPattern(images.inflammation_texture_generic, 'repeat');
+                ctx.fillStyle = pattern;
+                ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
+                
+                ctx.globalCompositeOperation = 'destination-in'; // Apply mask
+                ctx.drawImage(maskCanvas, 0, 0);
+                ctx.globalCompositeOperation = 'source-over'; // Reset
+                ctx.globalAlpha = 1;
+            }
+        } else if (gameState === 'LEVEL_COMPLETE' || gameState === 'GAME_WON' || gameState === 'FILLING_PHASE') {
+             // Draw "Gutta Percha" fill (stylized pink/orange)
+            ctx.strokeStyle = '#FF8C69'; // Orangey-Pink
+            ctx.lineWidth = CANAL_WIDTH;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            paths.forEach(path => {
+                if (path.length < 2) return;
+                ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+            });
+        }
+
+
+        // 3. Draw Access Targets / Player / Bacteria
         if (gameState === 'ACCESS_MINIGAME') {
             accessTargets.forEach(target => {
-                if (!target.hit) {
-                    if (images.access_target && images.access_target.complete) {
-                         ctx.drawImage(images.access_target, target.x - target.radius, target.y - target.radius, target.radius * 2, target.radius * 2);
-                    } else { // Fallback drawing
-                        ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-                        ctx.beginPath();
-                        ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.strokeStyle = 'red';
-                        ctx.stroke();
-                    }
+                if (!target.hit && images.access_target && images.access_target.complete) {
+                    ctx.drawImage(images.access_target, target.x - target.radius, target.y - target.radius, target.radius * 2, target.radius * 2);
                 }
             });
-             // Draw player tool even in access minigame, but non-interactive
-            ctx.drawImage(images[currentTool.imageKey], player.x, player.y, player.width, player.height);
-
-        } else if (gameState === 'PLAYING') {
-            // Draw bacteria
-            bacteria.forEach(b => {
-                if (images[b.type] && images[b.type].complete) {
-                    ctx.drawImage(images[b.type], b.x, b.y, b.width, b.height);
-                }
-            });
-
-            // Draw player
-            if (images[currentTool.imageKey] && images[currentTool.imageKey].complete) {
+            if (images[currentTool.imageKey] && images[currentTool.imageKey].complete) { // Show player tool
                  ctx.drawImage(images[currentTool.imageKey], player.x, player.y, player.width, player.height);
             }
-             // Draw Zap Radius for Shaper tool as feedback (optional)
+        } else if (gameState === 'PLAYING') {
+            bacteria.forEach(b => {
+                if (images[b.type] && images[b.type].complete) ctx.drawImage(images[b.type], b.x, b.y, b.width, b.height);
+            });
+            if (images[currentTool.imageKey] && images[currentTool.imageKey].complete) {
+                ctx.drawImage(images[currentTool.imageKey], player.x, player.y, player.width, player.height);
+            }
+            // Optional: Draw Zap Radius for Shaper tool
             if (currentTool === TOOLS.SHAPER && (keysPressed[' '] || keysPressed['Spacebar'])) {
                 ctx.beginPath();
                 ctx.arc(player.x + player.width / 2, player.y + player.height / 2, ZAP_BASE_RADIUS + currentTool.zapRadiusBonus, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(0, 255, 255, 0.2)";
-                ctx.fill();
-                ctx.strokeStyle = "rgba(0, 255, 255, 0.5)";
-                ctx.stroke();
+                ctx.fillStyle = "rgba(0, 200, 255, 0.15)"; ctx.fill();
+                ctx.strokeStyle = "rgba(0, 200, 255, 0.4)"; ctx.stroke();
             }
         }
     }
 
-    function gameLoop(timestamp) {
-        const deltaTime = (timestamp - lastTime) / 1000; // Time in seconds
-        lastTime = timestamp;
+    function mainGameLoop(timestamp) { // Renamed for clarity
+        const deltaTime = (timestamp - lastTimestamp) / 1000; // Seconds
+        lastTimestamp = timestamp;
 
         if (gameState === 'PLAYING' || gameState === 'ACCESS_MINIGAME') {
-             if (gameState === 'PLAYING' && deltaTime > 0 && deltaTime < 1) { // Avoid huge jumps if tab loses focus
-                update(deltaTime); // Pass deltaTime to update
-             } else if (gameState === 'ACCESS_MINIGAME') {
-                // Access minigame update is mostly event-driven (clicks)
-                // but we still need to draw
-             }
-            draw();
+            if (gameState === 'PLAYING' && deltaTime > 0 && deltaTime < 0.5) { // Cap deltaTime
+                updateGameLogic(deltaTime);
+            }
+            drawGame();
         } else {
-            // Draw one last time for static screens like GAME_OVER, LEVEL_COMPLETE
-            draw();
+            drawGame(); // Draw static screens
         }
     }
 
-    // --- UI Updates ---
-    function updateUI() {
+    // --- UI Update ---
+    function updateUIDisplay() {
         scoreDisplay.textContent = score;
-        currentLevelText.textContent = currentLevelIndex + 1 > levels.length ? levels.length : currentLevelIndex + 1;
+        currentLevelText.textContent = currentLevelIndex + 1 > gameLevels.length ? gameLevels.length : currentLevelIndex + 1;
         timeLeftDisplay.textContent = Math.ceil(levelTimer);
         currentToolText.textContent = currentTool.name;
 
-        const comfortPercentage = Math.max(0,(currentComfort / MAX_COMFORT) * 100);
+        const comfortPercentage = Math.max(0, (currentComfort / MAX_COMFORT) * 100);
         comfortBar.style.width = `${comfortPercentage}%`;
-
         if (comfortPercentage > 65) {
-            comfortBar.style.backgroundColor = '#4caf50'; // Green
-            if(images.happy_tooth_face.complete) comfortFace.src = images.happy_tooth_face.src;
+            comfortBar.style.backgroundColor = '#4caf50';
+            if (images.happy_tooth_face.complete) comfortFaceImg.src = images.happy_tooth_face.src;
         } else if (comfortPercentage > 25) {
-            comfortBar.style.backgroundColor = '#ffeb3b'; // Yellow
-            if(images.happy_tooth_face.complete) comfortFace.src = images.happy_tooth_face.src; // Or a neutral face
+            comfortBar.style.backgroundColor = '#ffeb3b';
+            if (images.happy_tooth_face.complete) comfortFaceImg.src = images.happy_tooth_face.src;
         } else {
-            comfortBar.style.backgroundColor = '#f44336'; // Red
-            if(images.sad_tooth_face.complete) comfortFace.src = images.sad_tooth_face.src;
+            comfortBar.style.backgroundColor = '#f44336';
+            if (images.sad_tooth_face.complete) comfortFaceImg.src = images.sad_tooth_face.src;
         }
     }
 
     function showMessage(title, text, buttonText, callback, autoHide = true) {
-        messageTitle.textContent = title;
-        messageText.textContent = text;
+        messageTitle.textContent = title; messageText.textContent = text;
         actionButton.textContent = buttonText;
         actionButton.style.display = buttonText ? 'inline-block' : 'none';
-        
-        actionButton.onclick = () => {
-            if (autoHide) hideMessage();
-            if (callback) callback();
-        };
+        actionButton.onclick = () => { if (autoHide) hideMessage(); if (callback) callback(); };
         messageOverlay.classList.remove('hidden');
     }
-
-    function hideMessage() {
-        messageOverlay.classList.add('hidden');
-    }
+    function hideMessage() { messageOverlay.classList.add('hidden'); }
 
     // --- Event Listeners ---
     window.addEventListener('keydown', (e) => {
         keysPressed[e.key] = true;
-        if (e.key === ' ' || e.key === 'Spacebar') e.preventDefault(); // Prevent page scroll
-
+        if (e.key === ' ' || e.key === 'Spacebar') e.preventDefault();
         if (e.key.toLowerCase() === 't' && (gameState === 'PLAYING' || gameState === 'ACCESS_MINIGAME')) {
             currentTool = (currentTool === TOOLS.FINDER) ? TOOLS.SHAPER : TOOLS.FINDER;
-            player.width = currentTool.width;
-            player.height = currentTool.height;
-            playSound('tool_switch');
-            updateUI();
+            player.width = currentTool.width; player.height = currentTool.height;
+            playSound('tool_switch'); updateUIDisplay();
         }
     });
-    window.addEventListener('keyup', (e) => {
-        keysPressed[e.key] = false;
-    });
+    window.addEventListener('keyup', (e) => { keysPressed[e.key] = false; });
 
     canvas.addEventListener('click', (e) => {
         if (gameState === 'ACCESS_MINIGAME') {
             const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
+            const clickX = e.clientX - rect.left; const clickY = e.clientY - rect.top;
             accessTargets.forEach(target => {
-                if (!target.hit) {
-                    const distX = clickX - target.x;
-                    const distY = clickY - target.y;
-                    if (Math.sqrt(distX * distX + distY * distY) < target.radius) {
-                        target.hit = true;
-                        playSound('drill', 0.5); // Use drill sound for access clicks
-                        // Check if all targets hit
-                        if (accessTargets.every(t => t.hit)) {
-                            changeGameState('PLAYING');
-                        }
-                    }
+                if (!target.hit && Math.hypot(clickX - target.x, clickY - target.y) < target.radius) {
+                    target.hit = true; playSound('drill', 0.5);
+                    if (accessTargets.every(t => t.hit)) changeGameState('PLAYING');
                 }
             });
         }
     });
 
     // --- Initialize ---
-    countAssets();
-    loadAssets();
+    loadGameAssets();
 });
