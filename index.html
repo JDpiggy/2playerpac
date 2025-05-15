@@ -18,19 +18,21 @@
         </header>
 
         <div id="patient-info">
-            Patient Comfort: 
+            Patient Comfort:
             <div id="comfort-bar-container">
                 <div id="comfort-bar"></div>
             </div>
-            <img id="comfort-face" src="happy_tooth_face.png" alt="Comfort Face">
+            <img id="comfort-face" src="assets/tiles/happy_tooth_face-removebg-preview.png" alt="Comfort Face">
         </div>
-        
+
         <div id="tool-info">
             Current Tool: <span id="current-tool-text">Finder</span> (Press 'T' to switch)
         </div>
 
         <canvas id="gameCanvas"></canvas>
         <canvas id="collisionCanvas" style="display: none;"></canvas> <!-- Hidden canvas for collision map -->
+        <canvas id="maskCanvas" style="display: none;"></canvas> <!-- Hidden canvas for masking operations -->
+
 
         <div id="controls-info">
             Arrow Keys: Move | Space: Zap | T: Switch Tool
