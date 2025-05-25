@@ -7,13 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const player1RoleDisplay = document.getElementById('player1Role');
     const player2RoleDisplay = document.getElementById('player2Role');
     const currentRoundDisplay = document.getElementById('currentRoundDisplay');
-    const maxRoundsDisplay = document.getElementById('maxRoundsDisplay'); // Not used yet, but good for future
+    const maxRoundsDisplay = document.getElementById('maxRoundsDisplay');
     const gameMessageDisplay = document.getElementById('gameMessage');
     const startButton = document.getElementById('startButton');
 
     const TILE_SIZE = 30;
-    const MAZE_COLS = 21; // Odd number for better maze structure
-    const MAZE_ROWS = 15; // Odd number
+    const MAZE_COLS = 21;
+    const MAZE_ROWS = 15;
 
     canvas.width = MAZE_COLS * TILE_SIZE;
     canvas.height = MAZE_ROWS * TILE_SIZE;
@@ -21,10 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const WALL = 1;
     const PATH = 0;
     const GEM = 2;
-    const POWERUP = 3; // Future use
 
-    // Simple predefined maze (1 = wall, 0 = path, 2 = gem)
-    // Ensure borders are walls.
     let maze = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
         [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
@@ -33,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [1,2,1,0,1,1,2,1,1,0,1,0,1,1,2,1,1,0,1,2,1],
         [1,0,0,2,0,2,0,2,1,2,1,2,1,2,0,2,0,2,0,0,1],
         [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1],
-        [1,0,0,2,1,2,0,2,0,2,0,2,0,2,0,2,1,2,0,0,1], // Middle row
+        [1,0,0,2,1,2,0,2,0,2,0,2,0,2,0,2,1,2,0,0,1],
         [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1],
         [1,0,0,2,0,2,0,2,1,2,1,2,1,2,0,2,0,2,0,0,1],
         [1,2,1,0,1,1,2,1,1,0,1,0,1,1,2,1,1,0,1,2,1],
@@ -42,30 +39,32 @@ document.addEventListener('DOMContentLoaded', () => {
         [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     ];
-    let originalMazeState; // To store the initial maze with gems for reset
+    let originalMazeState;
 
-    const PLAYER_SPEED = TILE_SIZE / 6; // Moves a fraction of a tile per frame
+    const PLAYER_SPEED = TILE_SIZE / 5; // Slightly faster
 
     let player1, player2;
     let currentRound = 0;
-    const MAX_POINTS_TO_WIN = 3;
+    const MAX_POINTS_TO_WIN = 5; // Changed to 5
     let totalGems = 0;
     let gemsCollected = 0;
 
-    let gameState = 'INITIAL'; // INITIAL, READY, PLAYING, ROUND_OVER, GAME_OVER
+    let gameState = 'INITIAL';
+    let animationFrameId = null;
 
-    // --- Player Class ---
     class Player {
         constructor(x, y, color, isPlayer1) {
-            this.x = x * TILE_SIZE + TILE_SIZE / 2; // Center of the tile
+            this.startX = x;
+            this.startY = y;
+            this.x = x * TILE_SIZE + TILE_SIZE / 2;
             this.y = y * TILE_SIZE + TILE_SIZE / 2;
             this.radius = TILE_SIZE / 3;
             this.color = color;
-            this.dx = 0;
-            this.dy = 0;
-            this.nextDx = 0;
-            this.nextDy = 0;
-            this.role = null; // 'RUNNER' or 'CHASER'
+            this.dx = 0; // Current horizontal speed component (-1, 0, or 1)
+            this.dy = 0; // Current vertical speed component (-1, 0, or 1)
+            this.queuedDx = 0; // Next intended horizontal direction
+            this.queuedDy = 0; // Next intended vertical direction
+            this.role = null;
             this.isPlayer1 = isPlayer1;
             this.score = 0;
         }
@@ -84,127 +83,117 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         update() {
-            this.tryMove();
-        }
-        
-        tryMove() {
             const currentTileX = Math.floor(this.x / TILE_SIZE);
             const currentTileY = Math.floor(this.y / TILE_SIZE);
+            const targetX = currentTileX * TILE_SIZE + TILE_SIZE / 2;
+            const targetY = currentTileY * TILE_SIZE + TILE_SIZE / 2;
 
-            // Check if at center of a tile to allow turning
-            const atCenterOfTileX = Math.abs(this.x - (currentTileX * TILE_SIZE + TILE_SIZE / 2)) < PLAYER_SPEED /2;
-            const atCenterOfTileY = Math.abs(this.y - (currentTileY * TILE_SIZE + TILE_SIZE / 2)) < PLAYER_SPEED /2;
+            const atCenterOfTile = Math.abs(this.x - targetX) < PLAYER_SPEED / 2 &&
+                                   Math.abs(this.y - targetY) < PLAYER_SPEED / 2;
 
-            if (atCenterOfTileX && atCenterOfTileY) {
-                 // Snap to center if very close, prevents drifting
-                this.x = currentTileX * TILE_SIZE + TILE_SIZE / 2;
-                this.y = currentTileY * TILE_SIZE + TILE_SIZE / 2;
+            if (atCenterOfTile) {
+                // Snap to center
+                this.x = targetX;
+                this.y = targetY;
 
-                // Try to apply next direction
-                if (this.nextDx !== 0 || this.nextDy !== 0) {
-                    const nextTileX_check = currentTileX + this.nextDx;
-                    const nextTileY_check = currentTileY + this.nextDy;
+                // Try to apply queued direction
+                if (this.queuedDx !== 0 || this.queuedDy !== 0) {
+                    const nextTileX_check = currentTileX + this.queuedDx;
+                    const nextTileY_check = currentTileY + this.queuedDy;
                     if (!isWall(nextTileX_check, nextTileY_check)) {
-                        this.dx = this.nextDx;
-                        this.dy = this.nextDy;
+                        this.dx = this.queuedDx;
+                        this.dy = this.queuedDy;
                     }
+                    this.queuedDx = 0; // Clear queue whether successful or not for this logic
+                    this.queuedDy = 0;
                 }
             }
-            
-            // Continue with current direction if possible
-            const nextPotentialX = this.x + this.dx * PLAYER_SPEED;
-            const nextPotentialY = this.y + this.dy * PLAYER_SPEED;
 
-            const targetTileX = Math.floor((this.x + this.dx * (this.radius + PLAYER_SPEED) ) / TILE_SIZE);
-            const targetTileY = Math.floor((this.y + this.dy * (this.radius + PLAYER_SPEED) ) / TILE_SIZE);
-            
-            if (!isWall(targetTileX, targetTileY) || (this.dx === 0 && this.dy === 0) ) {
-                 if (isWallForDirection(this.x, this.y, this.dx, this.dy, this.radius)) {
-                    // If moving towards a wall, stop
-                    if (atCenterOfTileX && atCenterOfTileY) { // Only stop if at center
-                         this.dx = 0;
-                         this.dy = 0;
-                    }
-                 } else {
-                    this.x = nextPotentialX;
-                    this.y = nextPotentialY;
-                 }
-            } else if (atCenterOfTileX && atCenterOfTileY) { // Hit a wall and at center
-                this.dx = 0;
-                this.dy = 0;
+            // Calculate potential next position based on current direction (dx, dy)
+            const nextX = this.x + this.dx * PLAYER_SPEED;
+            const nextY = this.y + this.dy * PLAYER_SPEED;
+
+            // Determine the tile the player would move into
+            // For collision, check the *center* of the tile they are trying to enter
+            const nextTileCenterX = currentTileX + this.dx;
+            const nextTileCenterY = currentTileY + this.dy;
+
+            if (this.dx !== 0 || this.dy !== 0) { // Only check for wall if moving
+                if (!isWall(nextTileCenterX, nextTileCenterY)) {
+                    this.x = nextX;
+                    this.y = nextY;
+                } else {
+                    // Hit a wall, stop at the center of the current tile
+                    this.x = targetX;
+                    this.y = targetY;
+                    this.dx = 0;
+                    this.dy = 0;
+                    // If there was a queued turn that also leads to a wall, it won't be taken.
+                    // Player must input a new valid direction.
+                }
             }
 
 
             // Collect Gem if Runner
             if (this.role === 'RUNNER') {
+                // Use the tile the player's center is currently in
                 const runnerTileX = Math.floor(this.x / TILE_SIZE);
                 const runnerTileY = Math.floor(this.y / TILE_SIZE);
                 if (maze[runnerTileY] && maze[runnerTileY][runnerTileX] === GEM) {
                     maze[runnerTileY][runnerTileX] = PATH;
                     gemsCollected++;
                     if (gemsCollected >= totalGems) {
-                        endRound(this); // Runner wins
+                        endRound(this);
                     }
                 }
             }
         }
 
-        setDirection(dx, dy) {
-            this.nextDx = dx;
-            this.nextDy = dy;
-            // If standing still, apply immediately if possible
-            if (this.dx === 0 && this.dy === 0) {
-                const currentTileX = Math.floor(this.x / TILE_SIZE);
-                const currentTileY = Math.floor(this.y / TILE_SIZE);
-                const nextTileX_check = currentTileX + this.nextDx;
-                const nextTileY_check = currentTileY + this.nextDy;
+        setDirection(newDx, newDy) {
+            // Don't allow reversing direction instantly unless at center of tile
+            const currentTileX = Math.floor(this.x / TILE_SIZE);
+            const currentTileY = Math.floor(this.y / TILE_SIZE);
+            const targetX = currentTileX * TILE_SIZE + TILE_SIZE / 2;
+            const targetY = currentTileY * TILE_SIZE + TILE_SIZE / 2;
+            const atCenterOfTile = Math.abs(this.x - targetX) < PLAYER_SPEED / 2 &&
+                                   Math.abs(this.y - targetY) < PLAYER_SPEED / 2;
+
+            if (atCenterOfTile) {
+                // If at center, try to apply new direction immediately if valid
+                const nextTileX_check = currentTileX + newDx;
+                const nextTileY_check = currentTileY + newDy;
                 if (!isWall(nextTileX_check, nextTileY_check)) {
-                    this.dx = this.nextDx;
-                    this.dy = this.nextDy;
+                    this.dx = newDx;
+                    this.dy = newDy;
+                    this.queuedDx = 0; // Clear queue
+                    this.queuedDy = 0;
+                } else { // If immediate turn is into a wall, queue it
+                    this.queuedDx = newDx;
+                    this.queuedDy = newDy;
                 }
+            } else {
+                 // If not at center, queue the direction
+                 this.queuedDx = newDx;
+                 this.queuedDy = newDy;
             }
         }
 
-        resetPosition(x, y) {
-            this.x = x * TILE_SIZE + TILE_SIZE / 2;
-            this.y = y * TILE_SIZE + TILE_SIZE / 2;
+        resetPosition(tileX, tileY) {
+            this.x = tileX * TILE_SIZE + TILE_SIZE / 2;
+            this.y = tileY * TILE_SIZE + TILE_SIZE / 2;
             this.dx = 0;
             this.dy = 0;
-            this.nextDx = 0;
-            this.nextDy = 0;
+            this.queuedDx = 0;
+            this.queuedDy = 0;
         }
     }
-    
-    function isWallForDirection(x, y, dx, dy, radius) {
-        if (dx === 0 && dy === 0) return false; // Not moving
 
-        // Calculate the leading edge of the player
-        let checkX = x;
-        let checkY = y;
-
-        if (dx > 0) checkX += radius;
-        if (dx < 0) checkX -= radius;
-        if (dy > 0) checkY += radius;
-        if (dy < 0) checkY -= radius;
-        
-        // Project slightly into the next tile
-        checkX += dx * (PLAYER_SPEED * 0.5); // Check slightly ahead
-        checkY += dy * (PLAYER_SPEED * 0.5);
-
-        const tileX = Math.floor(checkX / TILE_SIZE);
-        const tileY = Math.floor(checkY / TILE_SIZE);
-        
-        return isWall(tileX, tileY);
-    }
-
-
-    // --- Game Logic ---
     function initGame() {
-        originalMazeState = JSON.parse(JSON.stringify(maze)); // Deep copy
+        originalMazeState = JSON.parse(JSON.stringify(maze));
         countTotalGems();
 
-        player1 = new Player(1, 1, '#42A5F5', true); // Blue
-        player2 = new Player(MAZE_COLS - 2, MAZE_ROWS - 2, '#FFEE58', false); // Yellow
+        player1 = new Player(1, 1, '#42A5F5', true);
+        player2 = new Player(MAZE_COLS - 2, MAZE_ROWS - 2, '#FFEE58', false);
         
         player1.score = 0;
         player2.score = 0;
@@ -218,7 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         updateScoreboard();
-        draw(); // Draw initial state
+        draw();
+        if (animationFrameId) cancelAnimationFrame(animationFrameId); // Stop any previous loop
+        animationFrameId = requestAnimationFrame(gameLoop); // Start the main game loop
     }
 
     function startGameSequence() {
@@ -254,12 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resetMaze();
         
-        // Assign roles (Player 1 is Runner in odd rounds, Chaser in even)
         if (currentRound % 2 === 1) {
             player1.role = 'RUNNER';
-            player1.color = '#FFEB3B'; // Yellow
+            player1.color = '#FFEB3B';
             player2.role = 'CHASER';
-            player2.color = '#F44336'; // Red
+            player2.color = '#F44336';
         } else {
             player1.role = 'CHASER';
             player1.color = '#F44336';
@@ -267,8 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
             player2.color = '#FFEB3B';
         }
 
-        // Reset positions
-        // Runner starts top-left, Chaser bottom-right, or vice-versa
         if (player1.role === 'RUNNER') {
             player1.resetPosition(1, 1);
             player2.resetPosition(MAZE_COLS - 2, MAZE_ROWS - 2);
@@ -294,15 +282,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(readyInterval);
                 gameMessageDisplay.textContent = `${player1.role === 'RUNNER' ? "P1 (Runner)" : "P2 (Runner)"} GO!`;
                 gameState = 'PLAYING';
-                if (currentRound === 1 && animationFrameId === null) { // Start game loop only once
-                     gameLoop();
-                }
             }
         }, 1000);
     }
 
     function endRound(winnerPlayer) {
-        if (gameState !== 'PLAYING') return; // Prevent multiple triggers
+        if (gameState !== 'PLAYING') return;
 
         gameState = 'ROUND_OVER';
         let roundWinnerMessage;
@@ -310,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (winnerPlayer.role === 'RUNNER') {
             roundWinnerMessage = `${winnerPlayer.isPlayer1 ? "Player 1" : "Player 2"} (Runner) wins the round!`;
             winnerPlayer.score++;
-        } else { // Chaser won by catching
+        } else {
             roundWinnerMessage = `${winnerPlayer.isPlayer1 ? "Player 1" : "Player 2"} (Chaser) wins the round!`;
             winnerPlayer.score++;
         }
@@ -323,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 startNewRound();
             }
-        }, 3000); // 3 seconds pause before next round or game over
+        }, 3000);
     }
     
     function endGame() {
@@ -333,12 +318,12 @@ document.addEventListener('DOMContentLoaded', () => {
             finalMessage = `Player 1 Wins the Game! (${player1.score}-${player2.score})`;
         } else if (player2.score > player1.score) {
             finalMessage = `Player 2 Wins the Game! (${player2.score}-${player1.score})`;
-        } else {
-            finalMessage = `It's a Tie! (${player1.score}-${player2.score})`; // Should not happen with MAX_POINTS logic
+        } else { // Should be rare with MAX_POINTS_TO_WIN
+            finalMessage = `It's a Tie! (${player1.score}-${player2.score})`;
         }
         gameMessageDisplay.textContent = finalMessage + " Press Enter or Start to Play Again.";
         startButton.style.display = 'inline-block';
-        currentRoundDisplay.textContent = "-"; // Reset round display
+        currentRoundDisplay.textContent = "-";
     }
 
     function updateScoreboard() {
@@ -354,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isWall(x, y) {
         if (x < 0 || x >= MAZE_COLS || y < 0 || y >= MAZE_ROWS) {
-            return true; // Out of bounds is a wall
+            return true;
         }
         return maze[y][x] === WALL;
     }
@@ -373,25 +358,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const dy = runner.y - chaser.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < runner.radius + chaser.radius) {
-            endRound(chaser); // Chaser wins by catching
+        if (distance < runner.radius + chaser.radius - (PLAYER_SPEED / 2)) { // Slightly more lenient collision
+            endRound(chaser);
         }
     }
 
-    // --- Drawing ---
     function drawMaze() {
         for (let r = 0; r < MAZE_ROWS; r++) {
             for (let c = 0; c < MAZE_COLS; c++) {
-                ctx.fillStyle = '#000'; // Path base
+                ctx.fillStyle = '#000';
                 if (maze[r][c] === WALL) {
-                    ctx.fillStyle = '#3F51B5'; // Indigo Wall
+                    ctx.fillStyle = '#3F51B5';
                 }
                 ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
                 if (maze[r][c] === GEM) {
                     ctx.beginPath();
                     ctx.arc(c * TILE_SIZE + TILE_SIZE / 2, r * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 5, 0, Math.PI * 2);
-                    ctx.fillStyle = '#FFD700'; // Gold Gem
+                    ctx.fillStyle = '#FFD700';
                     ctx.fill();
                     ctx.closePath();
                 }
@@ -400,25 +384,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawMaze();
         if (player1) player1.draw();
         if (player2) player2.draw();
     }
-
-    // --- Game Loop ---
-    let animationFrameId = null;
+    
     function gameLoop() {
         if (gameState === 'PLAYING') {
-            player1.update();
-            player2.update();
+            if (player1) player1.update();
+            if (player2) player2.update();
             checkCollision();
         }
         draw();
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
-    // --- Event Listeners ---
     document.addEventListener('keydown', (e) => {
         if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
             if (e.key === 'Enter') {
@@ -428,15 +409,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (gameState !== 'PLAYING') return;
 
-        // Player 1 (WASD)
         if (player1) {
-            if (e.key === 'w' || e.key === 'W') player1.setDirection(0, -1); // Up
-            else if (e.key === 's' || e.key === 'S') player1.setDirection(0, 1); // Down
-            else if (e.key === 'a' || e.key === 'A') player1.setDirection(-1, 0); // Left
-            else if (e.key === 'd' || e.key === 'D') player1.setDirection(1, 0); // Right
+            if (e.key === 'w' || e.key === 'W') player1.setDirection(0, -1);
+            else if (e.key === 's' || e.key === 'S') player1.setDirection(0, 1);
+            else if (e.key === 'a' || e.key === 'A') player1.setDirection(-1, 0);
+            else if (e.key === 'd' || e.key === 'D') player1.setDirection(1, 0);
         }
 
-        // Player 2 (Arrow Keys)
         if (player2) {
             if (e.key === 'ArrowUp') player2.setDirection(0, -1);
             else if (e.key === 'ArrowDown') player2.setDirection(0, 1);
@@ -445,6 +424,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Start
     initGame();
 });
