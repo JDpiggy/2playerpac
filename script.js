@@ -1,599 +1,450 @@
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-VX0CBBDC69"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-VX0CBBDC69');
-</script>
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const collisionCanvas = document.getElementById('collisionCanvas');
-    const collisionCtx = collisionCanvas.getContext('2d');
-    const maskCanvas = document.getElementById('maskCanvas');
-    const maskCtx = maskCanvas.getContext('2d');
 
-    // UI Elements
-    const scoreDisplay = document.getElementById('score');
-    const currentLevelText = document.getElementById('current-level-text');
-    const timeLeftDisplay = document.getElementById('time-left');
-    const comfortBar = document.getElementById('comfort-bar');
-    const comfortFaceImg = document.getElementById('comfort-face');
-    const currentToolText = document.getElementById('current-tool-text');
-    const toolDescText = document.getElementById('tool-desc-text'); // For tool description
-    const messageOverlay = document.getElementById('message-overlay');
-    const messageTitle = document.getElementById('message-title');
-    const messageText = document.getElementById('message-text');
-    const actionButton = document.getElementById('action-button');
+    const player1ScoreDisplay = document.getElementById('player1Score');
+    const player2ScoreDisplay = document.getElementById('player2Score');
+    const player1RoleDisplay = document.getElementById('player1Role');
+    const player2RoleDisplay = document.getElementById('player2Role');
+    const currentRoundDisplay = document.getElementById('currentRoundDisplay');
+    const maxRoundsDisplay = document.getElementById('maxRoundsDisplay'); // Not used yet, but good for future
+    const gameMessageDisplay = document.getElementById('gameMessage');
+    const startButton = document.getElementById('startButton');
 
-    // Canvas Setup - Adjusted to new CSS sizes
-    const CANVAS_WIDTH = 800;
-    const CANVAS_HEIGHT = 600;
-    canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
-    collisionCanvas.width = CANVAS_WIDTH; collisionCanvas.height = CANVAS_HEIGHT;
-    maskCanvas.width = CANVAS_WIDTH; maskCanvas.height = CANVAS_HEIGHT;
+    const TILE_SIZE = 30;
+    const MAZE_COLS = 21; // Odd number for better maze structure
+    const MAZE_ROWS = 15; // Odd number
 
-    // Game Constants - Image sizes increased
-    const MAX_COMFORT = 100;
-    const COMFORT_DAMAGE_WALL_SMALL = 0.25; // Fine-tuned damage
-    const COMFORT_DAMAGE_WALL_LARGE = 0.75;
-    const COMFORT_DECREASE_RATE_PASSIVE = 0.02; // Slower passive decrease
+    canvas.width = MAZE_COLS * TILE_SIZE;
+    canvas.height = MAZE_ROWS * TILE_SIZE;
 
-    const BACTERIA_DISPLAY_SIZE = 35; // Made bigger
-    const PLAYER_TOOL_DISPLAY_WIDTH_FINDER = 30; // Made bigger
-    const PLAYER_TOOL_DISPLAY_HEIGHT_FINDER = 60;
-    const PLAYER_TOOL_DISPLAY_WIDTH_SHAPER = 34; // Made bigger
-    const PLAYER_TOOL_DISPLAY_HEIGHT_SHAPER = 68;
-    const ACCESS_TARGET_RADIUS = 25; // Made bigger
+    const WALL = 1;
+    const PATH = 0;
+    const GEM = 2;
+    const POWERUP = 3; // Future use
 
-    const ZAP_BASE_RADIUS = 40; // Larger zap radius
-    const CANAL_DRAW_WIDTH = 35; // Wider canals visually
-    const CANAL_COLLISION_WIDTH_BUFFER = 8; // Buffer for collision to be slightly wider than visual
-
-    const TOOLS = {
-        FINDER: {
-            name: "Finder",
-            speed: 4, // Slightly faster
-            zapRadiusBonus: 0,
-            wallDamage: COMFORT_DAMAGE_WALL_SMALL,
-            imageKey: 'endo_file_finder',
-            width: PLAYER_TOOL_DISPLAY_WIDTH_FINDER,
-            height: PLAYER_TOOL_DISPLAY_HEIGHT_FINDER,
-            description: "Finder: Agile & gentle. Faster movement, less comfort penalty on wall contact."
-        },
-        SHAPER: {
-            name: "Shaper",
-            speed: 2.8, // Slightly faster
-            zapRadiusBonus: 15, // Increased bonus
-            wallDamage: COMFORT_DAMAGE_WALL_LARGE,
-            imageKey: 'endo_file_shaper',
-            width: PLAYER_TOOL_DISPLAY_WIDTH_SHAPER,
-            height: PLAYER_TOOL_DISPLAY_HEIGHT_SHAPER,
-            description: "Shaper: Powerful cleaner. Slower, wider zap, higher wall penalty."
-        }
-    };
-    let currentTool = TOOLS.FINDER;
-
-    // Game State Variables
-    let score = 0;
-    let currentComfort = MAX_COMFORT;
-    let player = { x: CANVAS_WIDTH / 2, y: 100, width: currentTool.width, height: currentTool.height }; // Adjusted initial Y
-    let bacteria = [];
-    let accessTargets = [];
-    let keysPressed = {};
-    let gameState = 'LOADING';
-    let currentLevelIndex = 0;
-    let levelTimer = 0;
-    let gameLoopIntervalId;
-    let lastTimestamp = 0;
-    let currentProceduralLevelData = {};
-
-    const ASSET_PATH = 'assets/tiles/'; // Ensure this is correct
-
-    const gameLevels = [
-        { name: "Molar Initiation", toothImageKey: 'tooth_outline_molar', numCanals: 2, bacteriaCount: 8, timeLimit: 120, accessPointsCount: 2, canalStartPoints: [{ x: CANVAS_WIDTH * 0.45, y: CANVAS_HEIGHT * 0.25 }, { x: CANVAS_WIDTH * 0.55, y: CANVAS_HEIGHT * 0.25 }] },
-        { name: "Molar Challenge", toothImageKey: 'tooth_outline_molar', numCanals: 3, bacteriaCount: 12, timeLimit: 100, accessPointsCount: 3, canalStartPoints: [{ x: CANVAS_WIDTH * 0.40, y: CANVAS_HEIGHT * 0.25 }, { x: CANVAS_WIDTH * 0.50, y: CANVAS_HEIGHT * 0.22 }, { x: CANVAS_WIDTH * 0.60, y: CANVAS_HEIGHT * 0.25 }] },
+    // Simple predefined maze (1 = wall, 0 = path, 2 = gem)
+    // Ensure borders are walls.
+    let maze = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
+        [1,2,1,2,1,0,1,1,1,0,1,0,1,1,1,0,1,2,1,2,1],
+        [1,0,1,0,0,2,0,2,0,2,0,2,0,2,0,2,0,0,1,0,1],
+        [1,2,1,0,1,1,2,1,1,0,1,0,1,1,2,1,1,0,1,2,1],
+        [1,0,0,2,0,2,0,2,1,2,1,2,1,2,0,2,0,2,0,0,1],
+        [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1],
+        [1,0,0,2,1,2,0,2,0,2,0,2,0,2,0,2,1,2,0,0,1], // Middle row
+        [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1],
+        [1,0,0,2,0,2,0,2,1,2,1,2,1,2,0,2,0,2,0,0,1],
+        [1,2,1,0,1,1,2,1,1,0,1,0,1,1,2,1,1,0,1,2,1],
+        [1,0,1,0,0,2,0,2,0,2,0,2,0,2,0,2,0,0,1,0,1],
+        [1,2,1,2,1,0,1,1,1,0,1,0,1,1,1,0,1,2,1,2,1],
+        [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     ];
+    let originalMazeState; // To store the initial maze with gems for reset
 
-    const images = {
-        access_target: new Image(), bacteria_1: new Image(), bacteria_2: new Image(),
-        endo_file_finder: new Image(), endo_file_shaper: new Image(),
-        happy_tooth_face: new Image(), inflammation_texture_generic: new Image(),
-        sad_tooth_face: new Image(), tooth_outline_molar: new Image(),
-    };
-    // Sounds are placeholders, actual loading to be implemented if files exist
-    const sounds = { drill: null, zap: null, ouch: null, success_level: null, success_game: null, game_over: null, wall_hit: null, tool_switch: null, timer_tick: null, background_music: null };
-    let assetsToLoadCount = 0;
-    let assetsLoadedCount = 0;
+    const PLAYER_SPEED = TILE_SIZE / 6; // Moves a fraction of a tile per frame
 
-    function countAssets() {
-        assetsToLoadCount = Object.keys(images).length; // Sounds not counted for now
-    }
+    let player1, player2;
+    let currentRound = 0;
+    const MAX_POINTS_TO_WIN = 3;
+    let totalGems = 0;
+    let gemsCollected = 0;
 
-    function assetLoadedCallback(type, name) {
-        assetsLoadedCount++;
-        // console.log(`${type} loaded: ${name} (${assetsLoadedCount}/${assetsToLoadCount})`); // Less verbose
-        if (assetsLoadedCount === assetsToLoadCount) {
-            console.log("All visual assets loaded.");
-            comfortFaceImg.src = `${ASSET_PATH}happy_tooth_face-removebg-preview.png`;
-            toolDescText.textContent = currentTool.description; // Initial tool description
-            changeGameState('MAIN_MENU');
+    let gameState = 'INITIAL'; // INITIAL, READY, PLAYING, ROUND_OVER, GAME_OVER
+
+    // --- Player Class ---
+    class Player {
+        constructor(x, y, color, isPlayer1) {
+            this.x = x * TILE_SIZE + TILE_SIZE / 2; // Center of the tile
+            this.y = y * TILE_SIZE + TILE_SIZE / 2;
+            this.radius = TILE_SIZE / 3;
+            this.color = color;
+            this.dx = 0;
+            this.dy = 0;
+            this.nextDx = 0;
+            this.nextDy = 0;
+            this.role = null; // 'RUNNER' or 'CHASER'
+            this.isPlayer1 = isPlayer1;
+            this.score = 0;
         }
-        updateLoadingProgress();
-    }
-    function updateLoadingProgress() { /* ... (same as before) ... */ }
 
-    function loadGameAssets() {
-        changeGameState('LOADING');
-        countAssets();
-        updateLoadingProgress();
-        images.access_target.src = `${ASSET_PATH}access_target-removebg-preview.png`; images.access_target.onload = () => assetLoadedCallback('Image', 'access_target');
-        images.bacteria_1.src = `${ASSET_PATH}bacteria_1-removebg-preview.png`; images.bacteria_1.onload = () => assetLoadedCallback('Image', 'bacteria_1');
-        images.bacteria_2.src = `${ASSET_PATH}bacteria_2-removebg-preview.png`; images.bacteria_2.onload = () => assetLoadedCallback('Image', 'bacteria_2');
-        images.endo_file_finder.src = `${ASSET_PATH}endo_file_finder-removebg-preview.png`; images.endo_file_finder.onload = () => assetLoadedCallback('Image', 'endo_file_finder');
-        images.endo_file_shaper.src = `${ASSET_PATH}endo_file_shaper-removebg-preview.png`; images.endo_file_shaper.onload = () => assetLoadedCallback('Image', 'endo_file_shaper');
-        images.happy_tooth_face.src = `${ASSET_PATH}happy_tooth_face-removebg-preview.png`; images.happy_tooth_face.onload = () => assetLoadedCallback('Image', 'happy_tooth_face');
-        images.inflammation_texture_generic.src = `${ASSET_PATH}inflammation_texture_generic.png`; images.inflammation_texture_generic.onload = () => assetLoadedCallback('Image', 'inflammation_texture_generic');
-        images.sad_tooth_face.src = `${ASSET_PATH}sad_tooth_face-removebg-preview.png`; images.sad_tooth_face.onload = () => assetLoadedCallback('Image', 'sad_tooth_face');
-        images.tooth_outline_molar.src = `${ASSET_PATH}tooth_outline_molar.png`; images.tooth_outline_molar.onload = () => assetLoadedCallback('Image', 'tooth_outline_molar');
-    }
-    function playSound(soundKey, volume = 0.7) { /* ... (same as before) ... */ }
-
-    // --- Procedural Generation ---
-    function generateProceduralLevel(levelConfig) {
-        currentProceduralLevelData = {
-            config: levelConfig, canalPaths: [], accessPoints: [], bacteriaSpawns: []
-        };
-        for (let i = 0; i < levelConfig.numCanals; i++) {
-            const startPoint = levelConfig.canalStartPoints[i] || { x: CANVAS_WIDTH / 2 + (i - levelConfig.numCanals / 2) * 60, y: CANVAS_HEIGHT * 0.3 };
-            const path = generateSingleCanalPath(startPoint.x, startPoint.y, 18 + Math.random() * 12, CANAL_DRAW_WIDTH * 0.6); // Longer, more steps
-            currentProceduralLevelData.canalPaths.push(path);
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            if (this.role === 'CHASER') {
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ctx.closePath();
         }
-        const pulpChamberCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.2 };
-        for (let i = 0; i < levelConfig.accessPointsCount; i++) {
-            currentProceduralLevelData.accessPoints.push({
-                x: pulpChamberCenter.x + (Math.random() - 0.5) * 80,
-                y: pulpChamberCenter.y + (Math.random() - 0.5) * 50,
-                radius: ACCESS_TARGET_RADIUS, // Use constant
-                hit: false
-            });
+
+        update() {
+            this.tryMove();
         }
-        accessTargets = currentProceduralLevelData.accessPoints;
-        generateCollisionMapFromPaths(currentProceduralLevelData.canalPaths);
-        spawnBacteriaProcedural(levelConfig.bacteriaCount, currentProceduralLevelData.canalPaths);
-    }
+        
+        tryMove() {
+            const currentTileX = Math.floor(this.x / TILE_SIZE);
+            const currentTileY = Math.floor(this.y / TILE_SIZE);
 
-    function generateSingleCanalPath(startX, startY, numSteps, stepSize) {
-        let path = [{ x: startX, y: startY }];
-        let currentX = startX; let currentY = startY;
-        let lastAngle = Math.PI / 2; // Start by generally going down
+            // Check if at center of a tile to allow turning
+            const atCenterOfTileX = Math.abs(this.x - (currentTileX * TILE_SIZE + TILE_SIZE / 2)) < PLAYER_SPEED /2;
+            const atCenterOfTileY = Math.abs(this.y - (currentTileY * TILE_SIZE + TILE_SIZE / 2)) < PLAYER_SPEED /2;
 
-        for (let i = 0; i < numSteps; i++) {
-            // Bias angle change to be smoother, less erratic turns
-            let angleChange = (Math.random() - 0.5) * Math.PI * 0.4; // Max 36 deg change per step
-            let angle = lastAngle + angleChange;
+            if (atCenterOfTileX && atCenterOfTileY) {
+                 // Snap to center if very close, prevents drifting
+                this.x = currentTileX * TILE_SIZE + TILE_SIZE / 2;
+                this.y = currentTileY * TILE_SIZE + TILE_SIZE / 2;
 
-            // Stronger bias downwards, but allow some horizontal spread
-            angle = Math.max(Math.PI * 0.20, Math.min(Math.PI * 0.80, angle)); // Confine to a downward cone mostly
+                // Try to apply next direction
+                if (this.nextDx !== 0 || this.nextDy !== 0) {
+                    const nextTileX_check = currentTileX + this.nextDx;
+                    const nextTileY_check = currentTileY + this.nextDy;
+                    if (!isWall(nextTileX_check, nextTileY_check)) {
+                        this.dx = this.nextDx;
+                        this.dy = this.nextDy;
+                    }
+                }
+            }
+            
+            // Continue with current direction if possible
+            const nextPotentialX = this.x + this.dx * PLAYER_SPEED;
+            const nextPotentialY = this.y + this.dy * PLAYER_SPEED;
 
-            let currentStepSize = stepSize * (0.8 + Math.random() * 0.4); // Vary step length
-            let nextX = currentX + Math.cos(angle) * currentStepSize;
-            let nextY = currentY + Math.sin(angle) * currentStepSize;
+            const targetTileX = Math.floor((this.x + this.dx * (this.radius + PLAYER_SPEED) ) / TILE_SIZE);
+            const targetTileY = Math.floor((this.y + this.dy * (this.radius + PLAYER_SPEED) ) / TILE_SIZE);
+            
+            if (!isWall(targetTileX, targetTileY) || (this.dx === 0 && this.dy === 0) ) {
+                 if (isWallForDirection(this.x, this.y, this.dx, this.dy, this.radius)) {
+                    // If moving towards a wall, stop
+                    if (atCenterOfTileX && atCenterOfTileY) { // Only stop if at center
+                         this.dx = 0;
+                         this.dy = 0;
+                    }
+                 } else {
+                    this.x = nextPotentialX;
+                    this.y = nextPotentialY;
+                 }
+            } else if (atCenterOfTileX && atCenterOfTileY) { // Hit a wall and at center
+                this.dx = 0;
+                this.dy = 0;
+            }
 
-            // Keep within canvas boundaries (generous margins)
-            nextX = Math.max(CANVAS_WIDTH * 0.1, Math.min(CANVAS_WIDTH * 0.9, nextX));
-            nextY = Math.max(startY - CANVAS_HEIGHT * 0.05, Math.min(CANVAS_HEIGHT * 0.9, nextY));
 
-            currentX = nextX; currentY = nextY;
-            path.push({ x: currentX, y: currentY });
-            lastAngle = angle; // Remember last angle for smoother transition
-        }
-        return path;
-    }
-
-    function generateCollisionMapFromPaths(paths) {
-        collisionCtx.fillStyle = 'black';
-        collisionCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        collisionCtx.strokeStyle = 'white';
-        collisionCtx.lineWidth = CANAL_DRAW_WIDTH + CANAL_COLLISION_WIDTH_BUFFER; // Collision path wider
-        collisionCtx.lineCap = 'round'; collisionCtx.lineJoin = 'round';
-        paths.forEach(path => {
-            if (path.length < 2) return;
-            collisionCtx.beginPath(); collisionCtx.moveTo(path[0].x, path[0].y);
-            for (let i = 1; i < path.length; i++) collisionCtx.lineTo(path[i].x, path[i].y);
-            collisionCtx.stroke();
-        });
-    }
-
-    function spawnBacteriaProcedural(count, paths) {
-        bacteria = []; let attempts = 0;
-        while (bacteria.length < count && attempts < 1000) { // Increased attempts
-            attempts++;
-            if (paths.length === 0 || paths.every(p => p.length < 2)) break;
-
-            const randomPath = paths.filter(p => p.length >=2)[Math.floor(Math.random() * paths.filter(p => p.length >=2).length)];
-            if (!randomPath) continue;
-
-            const randomSegmentIndex = Math.floor(Math.random() * (randomPath.length - 1));
-            const p1 = randomPath[randomSegmentIndex]; const p2 = randomPath[randomSegmentIndex + 1];
-            const t = Math.random();
-            const spawnX = p1.x + (p2.x - p1.x) * t;
-            const spawnY = p1.y + (p2.y - p1.y) * t;
-
-            if (!isWall(spawnX, spawnY)) { // Check center of bacteria
-                bacteria.push({
-                    x: spawnX - BACTERIA_DISPLAY_SIZE / 2, y: spawnY - BACTERIA_DISPLAY_SIZE / 2,
-                    width: BACTERIA_DISPLAY_SIZE, height: BACTERIA_DISPLAY_SIZE,
-                    type: Math.random() > 0.5 ? 'bacteria_1' : 'bacteria_2',
-                    vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6,
-                    moveCooldown: Math.random() * 1.5 + 0.5 // Move more frequently
-                });
+            // Collect Gem if Runner
+            if (this.role === 'RUNNER') {
+                const runnerTileX = Math.floor(this.x / TILE_SIZE);
+                const runnerTileY = Math.floor(this.y / TILE_SIZE);
+                if (maze[runnerTileY] && maze[runnerTileY][runnerTileX] === GEM) {
+                    maze[runnerTileY][runnerTileX] = PATH;
+                    gemsCollected++;
+                    if (gemsCollected >= totalGems) {
+                        endRound(this); // Runner wins
+                    }
+                }
             }
         }
-        if (attempts >= 1000 && bacteria.length < count) console.warn("Could not spawn all bacteria.");
-    }
 
-    // --- Game State Management ---
-    function changeGameState(newState) { /* ... (same as before, just ensure title is Endo Madness) ... */
-        gameState = newState;
-        // console.log("Game state changed to: " + gameState); // Good for debugging
-        messageOverlay.classList.add('hidden');
-        if (gameLoopIntervalId) { clearInterval(gameLoopIntervalId); gameLoopIntervalId = null; } // Clear robustly
-
-        switch (gameState) {
-            case 'LOADING':
-                messageTitle.textContent = "Loading Endo Madness...";
-                messageText.textContent = `Loaded ${assetsLoadedCount} of ${assetsToLoadCount}`;
-                actionButton.style.display = 'none';
-                break;
-            case 'MAIN_MENU':
-                showMessage("Endo Madness", "Ready to face the madness?", "Start Game", () => {
-                    currentLevelIndex = 0; score = 0;
-                    changeGameState('LEVEL_INTRO');
-                });
-                break;
-            // ... other cases largely same, ensure titles reflect "Endo Madness" if hardcoded
-            case 'LEVEL_INTRO':
-                const levelConfig = gameLevels[currentLevelIndex];
-                showMessage(`Level ${currentLevelIndex + 1}: ${levelConfig.name}`, `Enemies: ${levelConfig.bacteriaCount}, Time: ${levelConfig.timeLimit}s. Prepare!`, "Begin Access", () => {
-                    setupProceduralLevel();
-                    changeGameState('ACCESS_MINIGAME');
-                });
-                break;
-            case 'ACCESS_MINIGAME':
-                hideMessage();
-                // Start game loop if not already running
-                if (!gameLoopIntervalId) gameLoopIntervalId = setInterval(mainGameLoop, 1000 / 60);
-                break;
-            case 'PLAYING':
-                hideMessage();
-                if (!gameLoopIntervalId) gameLoopIntervalId = setInterval(mainGameLoop, 1000 / 60);
-                lastTimestamp = performance.now(); // Reset for deltaTime calculation
-                break;
-            // ... rest of cases
-            case 'FILLING_PHASE':
-                showMessage("Area Cleared!", "Excellent work. Click to seal.", "Seal Area", () => {
-                    playSound('success_level');
-                    changeGameState('LEVEL_COMPLETE');
-                });
-                break;
-             case 'GAMEOVER':
-                playSound('game_over');
-                let reason = currentComfort <= 0 ? "Patient comfort depleted!" : "Time's up!";
-                showMessage("Session Failed!", `${reason} Final Score: ${score}`, "Retry Level", () => {
-                    // Reset to current level intro instead of main menu to retry
-                    // score = 0; // Optionally reset score for the level or keep cumulative
-                    changeGameState('LEVEL_INTRO'); 
-                });
-                break;
+        setDirection(dx, dy) {
+            this.nextDx = dx;
+            this.nextDy = dy;
+            // If standing still, apply immediately if possible
+            if (this.dx === 0 && this.dy === 0) {
+                const currentTileX = Math.floor(this.x / TILE_SIZE);
+                const currentTileY = Math.floor(this.y / TILE_SIZE);
+                const nextTileX_check = currentTileX + this.nextDx;
+                const nextTileY_check = currentTileY + this.nextDy;
+                if (!isWall(nextTileX_check, nextTileY_check)) {
+                    this.dx = this.nextDx;
+                    this.dy = this.nextDy;
+                }
+            }
         }
-        updateUIDisplay();
-    }
-    function setupProceduralLevel() { /* ... (same as before) ... */ }
 
-    // --- Collision Detection ---
+        resetPosition(x, y) {
+            this.x = x * TILE_SIZE + TILE_SIZE / 2;
+            this.y = y * TILE_SIZE + TILE_SIZE / 2;
+            this.dx = 0;
+            this.dy = 0;
+            this.nextDx = 0;
+            this.nextDy = 0;
+        }
+    }
+    
+    function isWallForDirection(x, y, dx, dy, radius) {
+        if (dx === 0 && dy === 0) return false; // Not moving
+
+        // Calculate the leading edge of the player
+        let checkX = x;
+        let checkY = y;
+
+        if (dx > 0) checkX += radius;
+        if (dx < 0) checkX -= radius;
+        if (dy > 0) checkY += radius;
+        if (dy < 0) checkY -= radius;
+        
+        // Project slightly into the next tile
+        checkX += dx * (PLAYER_SPEED * 0.5); // Check slightly ahead
+        checkY += dy * (PLAYER_SPEED * 0.5);
+
+        const tileX = Math.floor(checkX / TILE_SIZE);
+        const tileY = Math.floor(checkY / TILE_SIZE);
+        
+        return isWall(tileX, tileY);
+    }
+
+
+    // --- Game Logic ---
+    function initGame() {
+        originalMazeState = JSON.parse(JSON.stringify(maze)); // Deep copy
+        countTotalGems();
+
+        player1 = new Player(1, 1, '#42A5F5', true); // Blue
+        player2 = new Player(MAZE_COLS - 2, MAZE_ROWS - 2, '#FFEE58', false); // Yellow
+        
+        player1.score = 0;
+        player2.score = 0;
+        currentRound = 0;
+        gameState = 'INITIAL';
+        gameMessageDisplay.textContent = "Press Enter or Click Start";
+        startButton.style.display = 'inline-block';
+        startButton.onclick = () => {
+            if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
+                startGameSequence();
+            }
+        };
+        updateScoreboard();
+        draw(); // Draw initial state
+    }
+
+    function startGameSequence() {
+        player1.score = 0;
+        player2.score = 0;
+        currentRound = 0;
+        startButton.style.display = 'none';
+        startNewRound();
+    }
+    
+    function countTotalGems() {
+        totalGems = 0;
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                if (originalMazeState[r][c] === GEM) {
+                    totalGems++;
+                }
+            }
+        }
+    }
+
+    function resetMaze() {
+        maze = JSON.parse(JSON.stringify(originalMazeState));
+        gemsCollected = 0;
+    }
+
+    function startNewRound() {
+        currentRound++;
+        if (currentRound > 1 && (player1.score >= MAX_POINTS_TO_WIN || player2.score >= MAX_POINTS_TO_WIN)) {
+            endGame();
+            return;
+        }
+
+        resetMaze();
+        
+        // Assign roles (Player 1 is Runner in odd rounds, Chaser in even)
+        if (currentRound % 2 === 1) {
+            player1.role = 'RUNNER';
+            player1.color = '#FFEB3B'; // Yellow
+            player2.role = 'CHASER';
+            player2.color = '#F44336'; // Red
+        } else {
+            player1.role = 'CHASER';
+            player1.color = '#F44336';
+            player2.role = 'RUNNER';
+            player2.color = '#FFEB3B';
+        }
+
+        // Reset positions
+        // Runner starts top-left, Chaser bottom-right, or vice-versa
+        if (player1.role === 'RUNNER') {
+            player1.resetPosition(1, 1);
+            player2.resetPosition(MAZE_COLS - 2, MAZE_ROWS - 2);
+        } else {
+            player2.resetPosition(1, 1);
+            player1.resetPosition(MAZE_COLS - 2, MAZE_ROWS - 2);
+        }
+        
+        updateScoreboard();
+        currentRoundDisplay.textContent = currentRound;
+        maxRoundsDisplay.textContent = "First to " + MAX_POINTS_TO_WIN;
+
+
+        gameState = 'READY';
+        let countdown = 3;
+        gameMessageDisplay.textContent = `Round ${currentRound}! Get Ready... ${countdown}`;
+        
+        const readyInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                gameMessageDisplay.textContent = `Get Ready... ${countdown}`;
+            } else {
+                clearInterval(readyInterval);
+                gameMessageDisplay.textContent = `${player1.role === 'RUNNER' ? "P1 (Runner)" : "P2 (Runner)"} GO!`;
+                gameState = 'PLAYING';
+                if (currentRound === 1 && animationFrameId === null) { // Start game loop only once
+                     gameLoop();
+                }
+            }
+        }, 1000);
+    }
+
+    function endRound(winnerPlayer) {
+        if (gameState !== 'PLAYING') return; // Prevent multiple triggers
+
+        gameState = 'ROUND_OVER';
+        let roundWinnerMessage;
+
+        if (winnerPlayer.role === 'RUNNER') {
+            roundWinnerMessage = `${winnerPlayer.isPlayer1 ? "Player 1" : "Player 2"} (Runner) wins the round!`;
+            winnerPlayer.score++;
+        } else { // Chaser won by catching
+            roundWinnerMessage = `${winnerPlayer.isPlayer1 ? "Player 1" : "Player 2"} (Chaser) wins the round!`;
+            winnerPlayer.score++;
+        }
+        gameMessageDisplay.textContent = roundWinnerMessage;
+        updateScoreboard();
+
+        setTimeout(() => {
+            if (player1.score >= MAX_POINTS_TO_WIN || player2.score >= MAX_POINTS_TO_WIN) {
+                endGame();
+            } else {
+                startNewRound();
+            }
+        }, 3000); // 3 seconds pause before next round or game over
+    }
+    
+    function endGame() {
+        gameState = 'GAME_OVER';
+        let finalMessage;
+        if (player1.score > player2.score) {
+            finalMessage = `Player 1 Wins the Game! (${player1.score}-${player2.score})`;
+        } else if (player2.score > player1.score) {
+            finalMessage = `Player 2 Wins the Game! (${player2.score}-${player1.score})`;
+        } else {
+            finalMessage = `It's a Tie! (${player1.score}-${player2.score})`; // Should not happen with MAX_POINTS logic
+        }
+        gameMessageDisplay.textContent = finalMessage + " Press Enter or Start to Play Again.";
+        startButton.style.display = 'inline-block';
+        currentRoundDisplay.textContent = "-"; // Reset round display
+    }
+
+    function updateScoreboard() {
+        player1ScoreDisplay.textContent = player1.score;
+        player2ScoreDisplay.textContent = player2.score;
+
+        player1RoleDisplay.textContent = `(${player1.role || ''})`;
+        player2RoleDisplay.textContent = `(${player2.role || ''})`;
+        
+        player1RoleDisplay.className = player1.role === 'RUNNER' ? 'runner-role' : (player1.role === 'CHASER' ? 'chaser-role' : '');
+        player2RoleDisplay.className = player2.role === 'RUNNER' ? 'runner-role' : (player2.role === 'CHASER' ? 'chaser-role' : '');
+    }
+
     function isWall(x, y) {
-        if (x < 0 || x >= CANVAS_WIDTH || y < 0 || y >= CANVAS_HEIGHT) return true;
-        try {
-            const pixelData = collisionCtx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
-            return pixelData[0] < 128; // Simpler: if R channel is dark, it's a wall
-        } catch (e) {
-            // console.error("Error reading pixel data from collision canvas at:", x, y, e);
-            return true; // Treat errors as walls to be safe
+        if (x < 0 || x >= MAZE_COLS || y < 0 || y >= MAZE_ROWS) {
+            return true; // Out of bounds is a wall
         }
+        return maze[y][x] === WALL;
+    }
+
+    function checkCollision() {
+        let runner, chaser;
+        if (player1.role === 'RUNNER') {
+            runner = player1;
+            chaser = player2;
+        } else {
+            runner = player2;
+            chaser = player1;
+        }
+
+        const dx = runner.x - chaser.x;
+        const dy = runner.y - chaser.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < runner.radius + chaser.radius) {
+            endRound(chaser); // Chaser wins by catching
+        }
+    }
+
+    // --- Drawing ---
+    function drawMaze() {
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                ctx.fillStyle = '#000'; // Path base
+                if (maze[r][c] === WALL) {
+                    ctx.fillStyle = '#3F51B5'; // Indigo Wall
+                }
+                ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+                if (maze[r][c] === GEM) {
+                    ctx.beginPath();
+                    ctx.arc(c * TILE_SIZE + TILE_SIZE / 2, r * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFD700'; // Gold Gem
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+        drawMaze();
+        if (player1) player1.draw();
+        if (player2) player2.draw();
     }
 
     // --- Game Loop ---
-    function updateGameLogic(deltaTime) {
-        if (gameState !== 'PLAYING') return; // Strict check
-
-        levelTimer -= deltaTime; // Timer tick down
-        if (levelTimer <= 0) { levelTimer = 0; changeGameState('GAMEOVER'); return; }
-        if (levelTimer < 10.5 && Math.floor(levelTimer) !== Math.floor(levelTimer + deltaTime) && levelTimer > 0) { // Check before it hits 0
-             playSound('timer_tick', 0.5);
-        }
-
-        currentComfort -= COMFORT_DECREASE_RATE_PASSIVE * deltaTime;
-
-        // Player movement - refined collision
-        let dx = 0, dy = 0;
-        const speed = currentTool.speed;
-        if (keysPressed['ArrowUp'] || keysPressed['w']) dy -= speed;
-        if (keysPressed['ArrowDown'] || keysPressed['s']) dy += speed;
-        if (keysPressed['ArrowLeft'] || keysPressed['a']) dx -= speed;
-        if (keysPressed['ArrowRight'] || keysPressed['d']) dx += speed;
-
-        const currentX = player.x;
-        const currentY = player.y;
-        const nextX = player.x + dx;
-        const nextY = player.y + dy;
-
-        // Test X movement
-        if (dx !== 0) {
-            if (!isWall(nextX + (dx > 0 ? player.width : 0), player.y + player.height / 2) &&
-                !isWall(nextX + (dx > 0 ? player.width : 0), player.y) && // Check top corner
-                !isWall(nextX + (dx > 0 ? player.width : 0), player.y + player.height)) { // Check bottom corner
-                player.x = nextX;
-            } else {
-                currentComfort -= currentTool.wallDamage; playSound('wall_hit', 0.3);
-            }
-        }
-        // Test Y movement
-        if (dy !== 0) {
-            if (!isWall(player.x + player.width / 2, nextY + (dy > 0 ? player.height : 0)) &&
-                !isWall(player.x, nextY + (dy > 0 ? player.height : 0)) && // Check left corner
-                !isWall(player.x + player.width, nextY + (dy > 0 ? player.height : 0))) { // Check right corner
-                player.y = nextY;
-            } else {
-                currentComfort -= currentTool.wallDamage; playSound('wall_hit', 0.3);
-            }
-        }
-
-        player.x = Math.max(0, Math.min(CANVAS_WIDTH - player.width, player.x));
-        player.y = Math.max(0, Math.min(CANVAS_HEIGHT - player.height, player.y));
-
-        // Bacteria movement (same as before)
-        bacteria.forEach(b => { /* ... */ });
-
-
-        // Zapping bacteria
-        if (keysPressed[' '] || keysPressed['Spacebar']) {
-            let zappedThisPress = false; // Ensure one press doesn't clear multiple frames
-            const zapRadius = ZAP_BASE_RADIUS + currentTool.zapRadiusBonus;
-            bacteria = bacteria.filter(b => {
-                const dist = Math.hypot((player.x + player.width / 2) - (b.x + b.width / 2), (player.y + player.height / 2) - (b.y + b.height / 2));
-                if (dist < zapRadius + b.width / 2) {
-                    score += 10; // Score update
-                    zappedThisPress = true;
-                    return false;
-                }
-                return true;
-            });
-            if (zappedThisPress) playSound('zap');
-            keysPressed[' '] = false; keysPressed['Spacebar'] = false; // Consume the key press
-        }
-
-
-        if (currentComfort <= 0) { currentComfort = 0; playSound('ouch', 1.0); changeGameState('GAMEOVER'); return; }
-        if (bacteria.length === 0 && gameState === 'PLAYING') { // Ensure not already in another state
-            changeGameState('FILLING_PHASE'); return;
-        }
-        updateUIDisplay(); // Ensure UI updates after score changes etc.
-    }
-
-    function drawGame() {
-        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        const levelConf = currentProceduralLevelData.config;
-
-        // 1. Draw Tooth Outline - ensure it's drawn opaquely
-        if (levelConf && images[levelConf.toothImageKey] && images[levelConf.toothImageKey].complete) {
-            const img = images[levelConf.toothImageKey];
-            // Draw image centered and scaled to fit if it's larger than canvas, or just centered if smaller.
-            // This logic assumes the "tooth" art within the image is centered and fills most of its source dimensions.
-            let drawWidth = img.width;
-            let drawHeight = img.height;
-            let scale = 1;
-
-            // If image is wider or taller than canvas, scale it down to fit while maintaining aspect ratio
-            if (img.width > CANVAS_WIDTH || img.height > CANVAS_HEIGHT) {
-                scale = Math.min(CANVAS_WIDTH / img.width, CANVAS_HEIGHT / img.height);
-                drawWidth = img.width * scale;
-                drawHeight = img.height * scale;
-            }
-            // Or, if you want it to always fill a certain portion, e.g., 80% of canvas height:
-            // scale = (CANVAS_HEIGHT * 0.8) / img.height;
-            // drawWidth = img.width * scale;
-            // drawHeight = img.height * scale;
-
-
-            const imgX = (CANVAS_WIDTH - drawWidth) / 2;
-            const imgY = (CANVAS_HEIGHT - drawHeight) / 2;
-            ctx.globalAlpha = 1.0; // Ensure full opacity for the tooth outline image
-            ctx.drawImage(img, imgX, imgY, drawWidth, drawHeight);
-        } else {
-            ctx.fillStyle = '#EFEFEF';
-            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); // Fallback background
-        }
-
-        // ... rest of drawing logic for canals, inflammation, fill (largely same) ...
-        // Ensure CANAL_DRAW_WIDTH is used for visual canals
-        const paths = currentProceduralLevelData.canalPaths || [];
-        // ... (masking logic for inflammation/fill remains the same) ...
-
-        // Healthy canal base color
-        ctx.strokeStyle = '#FFD1DC'; // Lighter Pink for healthy base
-        ctx.lineWidth = CANAL_DRAW_WIDTH;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        paths.forEach(path => {
-            if (path.length < 2) return;
-            ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
-            for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-            ctx.stroke();
-        });
-
-        // Inflammation
-        if ((gameState === 'PLAYING' || gameState === 'ACCESS_MINIGAME' || gameState === 'GAMEOVER') &&
-            images.inflammation_texture_generic && images.inflammation_texture_generic.complete) {
-            // ... (masking and drawing inflammation texture as before) ...
-            // Ensure mask is generated correctly based on CANAL_DRAW_WIDTH
-            maskCtx.clearRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
-            maskCtx.fillStyle = 'black'; maskCtx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
-            if (paths.length > 0) {
-                maskCtx.strokeStyle = 'white'; maskCtx.lineWidth = CANAL_DRAW_WIDTH;
-                maskCtx.lineCap = 'round'; maskCtx.lineJoin = 'round';
-                paths.forEach(path => { /* ... draw path to maskCtx ... */ 
-                    if (path.length < 2) return;
-                    maskCtx.beginPath(); maskCtx.moveTo(path[0].x, path[0].y);
-                    for (let i = 1; i < path.length; i++) maskCtx.lineTo(path[i].x, path[i].y);
-                    maskCtx.stroke();
-                });
-            }
-            const inflammationAlpha = Math.min(0.75, Math.max(0.15, 1.2 - (currentComfort / MAX_COMFORT))); // Adjusted alpha
-            ctx.globalAlpha = inflammationAlpha;
-            const pattern = ctx.createPattern(images.inflammation_texture_generic, 'repeat');
-            ctx.fillStyle = pattern; ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
-            ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(maskCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-        } else if (gameState === 'LEVEL_COMPLETE' || gameState === 'GAME_WON' || gameState === 'FILLING_PHASE') {
-            ctx.strokeStyle = '#FF7F50'; // Coral/Orange for fill
-            ctx.lineWidth = CANAL_DRAW_WIDTH;
-            // ... (draw filled paths) ...
-            paths.forEach(path => {
-                if (path.length < 2) return;
-                ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-                ctx.stroke();
-            });
-        }
-
-
-        // Draw Access Targets / Player / Bacteria (using new display sizes)
-        if (gameState === 'ACCESS_MINIGAME') {
-            accessTargets.forEach(target => {
-                if (!target.hit && images.access_target && images.access_target.complete) {
-                    ctx.drawImage(images.access_target, target.x - target.radius, target.y - target.radius, target.radius * 2, target.radius * 2);
-                } else if (target.hit) { // Visual feedback for hit targets
-                    ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
-                    ctx.beginPath(); ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2); ctx.fill();
-                }
-            });
-            if (images[currentTool.imageKey] && images[currentTool.imageKey].complete) {
-                 ctx.drawImage(images[currentTool.imageKey], player.x, player.y, currentTool.width, currentTool.height);
-            }
-        } else if (gameState === 'PLAYING') {
-            bacteria.forEach(b => {
-                if (images[b.type] && images[b.type].complete) ctx.drawImage(images[b.type], b.x, b.y, b.width, b.height);
-            });
-            if (images[currentTool.imageKey] && images[currentTool.imageKey].complete) {
-                ctx.drawImage(images[currentTool.imageKey], player.x, player.y, currentTool.width, currentTool.height);
-            }
-             if (currentTool === TOOLS.SHAPER && (keysPressed[' '] || keysPressed['Spacebar'])) { /* ... (zap radius draw) ... */ }
-        }
-    }
-
-    function mainGameLoop(timestamp) {
-        if (!lastTimestamp) lastTimestamp = timestamp; // Initialize on first frame
-        const deltaTime = (timestamp - lastTimestamp) / 1000;
-        lastTimestamp = timestamp;
-
-        // Cap deltaTime to prevent huge jumps if tab loses focus
-        const cappedDeltaTime = Math.min(deltaTime, 0.1); // Max 0.1s jump (10 FPS equivalent for a single frame)
-
+    let animationFrameId = null;
+    function gameLoop() {
         if (gameState === 'PLAYING') {
-            updateGameLogic(cappedDeltaTime); // Use capped deltaTime
+            player1.update();
+            player2.update();
+            checkCollision();
         }
-        // Always draw, even if paused or in other states, to keep UI responsive
-        drawGame();
+        draw();
+        animationFrameId = requestAnimationFrame(gameLoop);
     }
-
-
-    function updateUIDisplay() {
-        scoreDisplay.textContent = score; // Score update fixed
-        currentLevelText.textContent = currentLevelIndex + 1 > gameLevels.length ? gameLevels.length : currentLevelIndex + 1;
-        timeLeftDisplay.textContent = Math.max(0, Math.ceil(levelTimer)); // Ensure timer doesn't go negative on display
-
-        currentToolText.textContent = currentTool.name;
-        toolDescText.textContent = currentTool.description; // Update tool description
-
-        const comfortPercentage = Math.max(0, (currentComfort / MAX_COMFORT) * 100);
-        // ... (comfort bar and face logic same) ...
-        if (images.happy_tooth_face.complete && images.sad_tooth_face.complete) { // Ensure images are loaded
-            if (comfortPercentage > 65) {
-                comfortBar.style.backgroundColor = '#4caf50';
-                comfortFaceImg.src = images.happy_tooth_face.src;
-            } else if (comfortPercentage > 25) {
-                comfortBar.style.backgroundColor = '#ffeb3b';
-                comfortFaceImg.src = images.happy_tooth_face.src;
-            } else {
-                comfortBar.style.backgroundColor = '#f44336';
-                comfortFaceImg.src = images.sad_tooth_face.src;
-            }
-        }
-    }
-    function showMessage(title, text, buttonText, callback, autoHide = true) { /* ... (same) ... */ }
-    function hideMessage() { /* ... (same) ... */ }
 
     // --- Event Listeners ---
-    window.addEventListener('keydown', (e) => {
-        // Prevent default for space and arrow keys to avoid page scrolling
-        if ([' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-            e.preventDefault();
-        }
-        keysPressed[e.key.toLowerCase()] = true; // Store keys as lowercase for consistency (w vs W)
-
-        // Tool Switch: More robust check
-        if (e.key.toLowerCase() === 't') {
-            if (gameState === 'PLAYING' || gameState === 'ACCESS_MINIGAME') {
-                currentTool = (currentTool === TOOLS.FINDER) ? TOOLS.SHAPER : TOOLS.FINDER;
-                player.width = currentTool.width;
-                player.height = currentTool.height;
-                playSound('tool_switch');
-                updateUIDisplay(); // Update description immediately
+    document.addEventListener('keydown', (e) => {
+        if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
+            if (e.key === 'Enter') {
+                startGameSequence();
             }
+            return;
         }
-    });
-    window.addEventListener('keyup', (e) => {
-        keysPressed[e.key.toLowerCase()] = false;
-    });
+        if (gameState !== 'PLAYING') return;
 
-    canvas.addEventListener('click', (e) => {
-        if (gameState === 'ACCESS_MINIGAME') {
-            const rect = canvas.getBoundingClientRect();
-            // Calculate scale factors if canvas is styled to a different size than its resolution
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+        // Player 1 (WASD)
+        if (player1) {
+            if (e.key === 'w' || e.key === 'W') player1.setDirection(0, -1); // Up
+            else if (e.key === 's' || e.key === 'S') player1.setDirection(0, 1); // Down
+            else if (e.key === 'a' || e.key === 'A') player1.setDirection(-1, 0); // Left
+            else if (e.key === 'd' || e.key === 'D') player1.setDirection(1, 0); // Right
+        }
 
-            const clickX = (e.clientX - rect.left) * scaleX;
-            const clickY = (e.clientY - rect.top) * scaleY;
-
-            // console.log(`Click at: ${clickX}, ${clickY}`); // For debugging click coords
-
-            let targetHitThisClick = false;
-            accessTargets.forEach(target => {
-                if (!target.hit) {
-                    const dist = Math.hypot(clickX - target.x, clickY - target.y);
-                    // console.log(`Target: ${target.x}, ${target.y}, Radius: ${target.radius}, Dist: ${dist}`);
-                    if (dist < target.radius) {
-                        target.hit = true;
-                        targetHitThisClick = true;
-                        // console.log("Target Hit!");
-                    }
-                }
-            });
-
-            if (targetHitThisClick) {
-                playSound('drill', 0.5);
-                 // Check if all targets hit AFTER iterating, to avoid modifying array during loop implicitly
-                if (accessTargets.every(t => t.hit)) {
-                    // console.log("All targets hit, changing to PLAYING");
-                    changeGameState('PLAYING');
-                }
-            }
+        // Player 2 (Arrow Keys)
+        if (player2) {
+            if (e.key === 'ArrowUp') player2.setDirection(0, -1);
+            else if (e.key === 'ArrowDown') player2.setDirection(0, 1);
+            else if (e.key === 'ArrowLeft') player2.setDirection(-1, 0);
+            else if (e.key === 'ArrowRight') player2.setDirection(1, 0);
         }
     });
 
-    // --- Initialize ---
-    loadGameAssets();
+    // Start
+    initGame();
 });
