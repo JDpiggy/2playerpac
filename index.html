@@ -3,50 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Endo Madness</title>
+    <title>Maze Tag: Role Reversal</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="game-container">
-        <header>
-            <h1>Endo Madness</h1>
-            <div id="game-stats">
-                <span id="score-board">Score: <span id="score">0</span></span> |
-                <span id="level-display">Level: <span id="current-level-text">1</span></span> |
-                <span id="timer-display">Time: <span id="time-left">--</span></span>
+    <div class="game-container">
+        <div class="ui-panel">
+            <h1>Maze Tag: Role Reversal</h1>
+            <div class="score-board">
+                <div id="player1Display">Player 1 (WASD): <span id="player1Score">0</span> <span id="player1Role"></span></div>
+                <div id="player2Display">Player 2 (Arrows): <span id="player2Score">0</span> <span id="player2Role"></span></div>
             </div>
-        </header>
-
-        <div id="patient-info">
-            Patient Comfort:
-            <div id="comfort-bar-container">
-                <div id="comfort-bar"></div>
-            </div>
-            <img id="comfort-face" src="assets/tiles/happy_tooth_face-removebg-preview.png" alt="Comfort Face">
+            <div id="roundInfo">Round: <span id="currentRoundDisplay">1</span> / <span id="maxRoundsDisplay">5</span></div>
+            <div id="gameMessage">Press Enter to Start</div>
+            <button id="startButton" style="display: none;">Start Game</button> <!-- Initially hidden, controlled by JS -->
         </div>
-
-        <div id="tool-info">
-            Current Tool: <span id="current-tool-text">Finder</span> (Press 'T' to switch)
-        </div>
-
         <canvas id="gameCanvas"></canvas>
-        <canvas id="collisionCanvas" style="display: none;"></canvas> <!-- Hidden canvas for collision map -->
-        <canvas id="maskCanvas" style="display: none;"></canvas> <!-- Hidden canvas for masking operations -->
-
-
-        <div id="controls-info">
-            Arrow Keys: Move | Space: Zap | T: Switch Tool
-        </div>
-
-        <div id="message-overlay" class="hidden">
-            <div id="message-box">
-                <h2 id="message-title"></h2>
-                <p id="message-text"></p>
-                <button id="action-button">Start Game</button>
-            </div>
-        </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
