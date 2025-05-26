@@ -21,8 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const WALL = 1;
     const PATH = 0;
     const GEM = 2;
+    const MIN_SPAWN_DISTANCE_TILES = 7; // Minimum distance between player spawns
 
-    let maze = [
+    // --- MAZE DEFINITIONS --- (Same as before)
+    const mazeLayout1 = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
         [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
         [1,2,1,2,1,0,1,1,1,0,1,0,1,1,1,0,1,2,1,2,1],
@@ -39,20 +41,59 @@ document.addEventListener('DOMContentLoaded', () => {
         [1,0,2,0,1,2,0,2,0,2,1,2,0,2,0,2,1,0,2,0,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     ];
+    const mazeLayout2 = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,2,0,2,0,2,0,2,0,1,0,2,0,2,0,2,0,2,0,1],
+        [1,2,1,1,1,0,1,1,1,2,1,2,1,1,1,0,1,1,1,2,1],
+        [1,0,2,0,2,0,2,0,0,0,0,0,0,0,2,0,2,0,2,0,1],
+        [1,2,1,1,1,2,1,0,1,1,0,1,1,0,1,2,1,1,1,2,1],
+        [1,0,2,0,0,0,1,2,0,2,0,2,0,2,1,0,0,0,2,0,1],
+        [1,2,1,0,1,2,1,1,1,0,1,0,1,1,1,2,1,0,1,2,1],
+        [1,0,0,0,2,0,0,0,2,0,2,0,2,0,0,0,2,0,0,0,1],
+        [1,2,1,0,1,2,1,1,1,0,1,0,1,1,1,2,1,0,1,2,1],
+        [1,0,2,0,0,0,1,2,0,2,0,2,0,2,1,0,0,0,2,0,1],
+        [1,2,1,1,1,2,1,0,1,1,0,1,1,0,1,2,1,1,1,2,1],
+        [1,0,2,0,2,0,2,0,0,0,0,0,0,0,2,0,2,0,2,0,1],
+        [1,2,1,1,1,0,1,1,1,2,1,2,1,1,1,0,1,1,1,2,1],
+        [1,0,2,0,2,0,2,0,2,0,1,0,2,0,2,0,2,0,2,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ];
+    const mazeLayout3 = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,2,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,2,0,1],
+        [1,2,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1,2,1],
+        [1,0,0,0,0,0,0,0,1,2,0,2,1,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,2,0,0,0,0,1,2,0,0,0,0,0,2,1,0,0,0,0,2,1],
+        [1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1],
+        [1,0,0,0,0,2,0,0,1,2,0,2,1,0,0,2,0,0,0,0,1],
+        [1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1],
+        [1,2,0,0,0,0,1,2,0,0,0,0,0,2,1,0,0,0,0,2,1],
+        [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,1,2,0,2,1,0,0,0,0,0,0,0,1],
+        [1,2,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1,2,1],
+        [1,0,2,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,2,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ];
+
+    const mazes = [mazeLayout1, mazeLayout2, mazeLayout3];
+    let activeMazeDefinition;
+    let maze;
     let originalMazeState;
 
-    const PLAYER_SPEED = TILE_SIZE / 5; // Slightly faster
+    const PLAYER_SPEED = TILE_SIZE / 6;
 
     let player1, player2;
     let currentRound = 0;
-    const MAX_POINTS_TO_WIN = 5; // Changed to 5
+    const MAX_POINTS_TO_WIN = 5;
     let totalGems = 0;
     let gemsCollected = 0;
 
     let gameState = 'INITIAL';
     let animationFrameId = null;
 
-    class Player {
+    // --- Player Class (Movement logic from previous good version) ---
+    class Player { // Player class is the same as the previous version with forgiving turns
         constructor(x, y, color, isPlayer1) {
             this.startX = x;
             this.startY = y;
@@ -60,10 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
             this.y = y * TILE_SIZE + TILE_SIZE / 2;
             this.radius = TILE_SIZE / 3;
             this.color = color;
-            this.dx = 0; // Current horizontal speed component (-1, 0, or 1)
-            this.dy = 0; // Current vertical speed component (-1, 0, or 1)
-            this.queuedDx = 0; // Next intended horizontal direction
-            this.queuedDy = 0; // Next intended vertical direction
+            this.dx = 0; 
+            this.dy = 0; 
+            this.intentDx = 0; 
+            this.intentDy = 0; 
             this.role = null;
             this.isPlayer1 = isPlayer1;
             this.score = 0;
@@ -85,62 +126,77 @@ document.addEventListener('DOMContentLoaded', () => {
         update() {
             const currentTileX = Math.floor(this.x / TILE_SIZE);
             const currentTileY = Math.floor(this.y / TILE_SIZE);
-            const targetX = currentTileX * TILE_SIZE + TILE_SIZE / 2;
-            const targetY = currentTileY * TILE_SIZE + TILE_SIZE / 2;
+            const tileCenterX = currentTileX * TILE_SIZE + TILE_SIZE / 2;
+            const tileCenterY = currentTileY * TILE_SIZE + TILE_SIZE / 2;
 
-            const atCenterOfTile = Math.abs(this.x - targetX) < PLAYER_SPEED / 2 &&
-                                   Math.abs(this.y - targetY) < PLAYER_SPEED / 2;
+            const decisionThreshold = PLAYER_SPEED; 
+            const atDecisionPointX = Math.abs(this.x - tileCenterX) < decisionThreshold;
+            const atDecisionPointY = Math.abs(this.y - tileCenterY) < decisionThreshold;
 
-            if (atCenterOfTile) {
-                // Snap to center
-                this.x = targetX;
-                this.y = targetY;
+            if (atDecisionPointX && atDecisionPointY) {
+                this.x = tileCenterX;
+                this.y = tileCenterY;
 
-                // Try to apply queued direction
-                if (this.queuedDx !== 0 || this.queuedDy !== 0) {
-                    const nextTileX_check = currentTileX + this.queuedDx;
-                    const nextTileY_check = currentTileY + this.queuedDy;
-                    if (!isWall(nextTileX_check, nextTileY_check)) {
-                        this.dx = this.queuedDx;
-                        this.dy = this.queuedDy;
+                if (this.intentDx !== 0 || this.intentDy !== 0) {
+                    let newDx = 0;
+                    let newDy = 0;
+                    let canMakeIntentTurn = false;
+
+                    if (this.intentDx !== 0) { 
+                        if (!isWall(currentTileX + this.intentDx, currentTileY)) {
+                            newDx = this.intentDx;
+                            newDy = 0;
+                            canMakeIntentTurn = true;
+                        }
+                    } else if (this.intentDy !== 0) { 
+                        if (!isWall(currentTileX, currentTileY + this.intentDy)) {
+                            newDy = this.intentDy;
+                            newDx = 0;
+                            canMakeIntentTurn = true;
+                        }
                     }
-                    this.queuedDx = 0; // Clear queue whether successful or not for this logic
-                    this.queuedDy = 0;
+
+                    if (canMakeIntentTurn) {
+                        this.dx = newDx;
+                        this.dy = newDy;
+                    }
+                }
+
+                if (isWall(currentTileX + this.dx, currentTileY + this.dy) && (this.dx !== 0 || this.dy !== 0)) {
+                    this.dx = 0; 
+                    this.dy = 0;
                 }
             }
 
-            // Calculate potential next position based on current direction (dx, dy)
             const nextX = this.x + this.dx * PLAYER_SPEED;
             const nextY = this.y + this.dy * PLAYER_SPEED;
 
-            // Determine the tile the player would move into
-            // For collision, check the *center* of the tile they are trying to enter
-            const nextTileCenterX = currentTileX + this.dx;
-            const nextTileCenterY = currentTileY + this.dy;
+            if (this.dx !== 0 || this.dy !== 0) {
+                let wallHit = false;
+                if (this.dx > 0 && isWall(Math.floor((this.x + this.radius + PLAYER_SPEED) / TILE_SIZE), currentTileY)) {
+                    wallHit = true; this.x = tileCenterX; 
+                } else if (this.dx < 0 && isWall(Math.floor((this.x - this.radius - PLAYER_SPEED) / TILE_SIZE), currentTileY)) {
+                    wallHit = true; this.x = tileCenterX;
+                } else if (this.dy > 0 && isWall(currentTileX, Math.floor((this.y + this.radius + PLAYER_SPEED) / TILE_SIZE))) {
+                    wallHit = true; this.y = tileCenterY;
+                } else if (this.dy < 0 && isWall(currentTileX, Math.floor((this.y - this.radius - PLAYER_SPEED) / TILE_SIZE))) {
+                    wallHit = true; this.y = tileCenterY;
+                }
 
-            if (this.dx !== 0 || this.dy !== 0) { // Only check for wall if moving
-                if (!isWall(nextTileCenterX, nextTileCenterY)) {
-                    this.x = nextX;
-                    this.y = nextY;
-                } else {
-                    // Hit a wall, stop at the center of the current tile
-                    this.x = targetX;
-                    this.y = targetY;
+                if (wallHit) {
                     this.dx = 0;
                     this.dy = 0;
-                    // If there was a queued turn that also leads to a wall, it won't be taken.
-                    // Player must input a new valid direction.
+                } else {
+                    this.x = nextX;
+                    this.y = nextY;
                 }
             }
 
-
-            // Collect Gem if Runner
+            const playerAtTileX = Math.floor(this.x / TILE_SIZE);
+            const playerAtTileY = Math.floor(this.y / TILE_SIZE);
             if (this.role === 'RUNNER') {
-                // Use the tile the player's center is currently in
-                const runnerTileX = Math.floor(this.x / TILE_SIZE);
-                const runnerTileY = Math.floor(this.y / TILE_SIZE);
-                if (maze[runnerTileY] && maze[runnerTileY][runnerTileX] === GEM) {
-                    maze[runnerTileY][runnerTileX] = PATH;
+                if (maze[playerAtTileY] && maze[playerAtTileY][playerAtTileX] === GEM) {
+                    maze[playerAtTileY][playerAtTileX] = PATH;
                     gemsCollected++;
                     if (gemsCollected >= totalGems) {
                         endRound(this);
@@ -150,49 +206,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setDirection(newDx, newDy) {
-            // Don't allow reversing direction instantly unless at center of tile
-            const currentTileX = Math.floor(this.x / TILE_SIZE);
-            const currentTileY = Math.floor(this.y / TILE_SIZE);
-            const targetX = currentTileX * TILE_SIZE + TILE_SIZE / 2;
-            const targetY = currentTileY * TILE_SIZE + TILE_SIZE / 2;
-            const atCenterOfTile = Math.abs(this.x - targetX) < PLAYER_SPEED / 2 &&
-                                   Math.abs(this.y - targetY) < PLAYER_SPEED / 2;
-
-            if (atCenterOfTile) {
-                // If at center, try to apply new direction immediately if valid
-                const nextTileX_check = currentTileX + newDx;
-                const nextTileY_check = currentTileY + newDy;
-                if (!isWall(nextTileX_check, nextTileY_check)) {
-                    this.dx = newDx;
-                    this.dy = newDy;
-                    this.queuedDx = 0; // Clear queue
-                    this.queuedDy = 0;
-                } else { // If immediate turn is into a wall, queue it
-                    this.queuedDx = newDx;
-                    this.queuedDy = newDy;
-                }
-            } else {
-                 // If not at center, queue the direction
-                 this.queuedDx = newDx;
-                 this.queuedDy = newDy;
-            }
+            this.intentDx = newDx;
+            this.intentDy = newDy;
         }
 
-        resetPosition(tileX, tileY) {
+        resetPosition(tileX, tileY) { // tileX, tileY are COL, ROW
             this.x = tileX * TILE_SIZE + TILE_SIZE / 2;
             this.y = tileY * TILE_SIZE + TILE_SIZE / 2;
             this.dx = 0;
             this.dy = 0;
-            this.queuedDx = 0;
-            this.queuedDy = 0;
+            this.intentDx = 0;
+            this.intentDy = 0;
         }
     }
 
-    function initGame() {
-        originalMazeState = JSON.parse(JSON.stringify(maze));
-        countTotalGems();
+    function getValidSpawnPoints(mazeArray) {
+        const points = [];
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                // Ensure it's a path and not too close to the very edge if desired
+                // For now, any path tile is fine.
+                if (mazeArray[r][c] === PATH) {
+                    // Could add more conditions, e.g. !isWall(c-1,r) && !isWall(c+1,r) etc. for more open spawns
+                    points.push({ r, c });
+                }
+            }
+        }
+        return points;
+    }
 
-        player1 = new Player(1, 1, '#42A5F5', true);
+
+    function initGame() {
+        player1 = new Player(1, 1, '#42A5F5', true); // Initial dummy positions
         player2 = new Player(MAZE_COLS - 2, MAZE_ROWS - 2, '#FFEE58', false);
         
         player1.score = 0;
@@ -206,10 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 startGameSequence();
             }
         };
+        
+        activeMazeDefinition = mazes[0]; // Default to first map for initial UI draw
+        originalMazeState = JSON.parse(JSON.stringify(activeMazeDefinition));
+        maze = JSON.parse(JSON.stringify(originalMazeState));
+        countTotalGems();
+
         updateScoreboard();
         draw();
-        if (animationFrameId) cancelAnimationFrame(animationFrameId); // Stop any previous loop
-        animationFrameId = requestAnimationFrame(gameLoop); // Start the main game loop
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(gameLoop);
     }
 
     function startGameSequence() {
@@ -243,36 +294,71 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const mapIndex = (currentRound - 1) % mazes.length;
+        activeMazeDefinition = mazes[mapIndex];
+        originalMazeState = JSON.parse(JSON.stringify(activeMazeDefinition));
+        countTotalGems();
         resetMaze();
         
         if (currentRound % 2 === 1) {
-            player1.role = 'RUNNER';
-            player1.color = '#FFEB3B';
-            player2.role = 'CHASER';
-            player2.color = '#F44336';
+            player1.role = 'RUNNER'; player1.color = '#FFEB3B';
+            player2.role = 'CHASER'; player2.color = '#F44336';
         } else {
-            player1.role = 'CHASER';
-            player1.color = '#F44336';
-            player2.role = 'RUNNER';
-            player2.color = '#FFEB3B';
+            player1.role = 'CHASER'; player1.color = '#F44336';
+            player2.role = 'RUNNER'; player2.color = '#FFEB3B';
         }
 
-        if (player1.role === 'RUNNER') {
-            player1.resetPosition(1, 1);
+        // --- Randomized Spawn Logic ---
+        let validSpawns = getValidSpawnPoints(activeMazeDefinition);
+        if (validSpawns.length < 2) {
+            console.error("Not enough valid spawn points on the map!");
+            // Fallback to fixed spawns if not enough points
+            player1.resetPosition(1,1);
             player2.resetPosition(MAZE_COLS - 2, MAZE_ROWS - 2);
         } else {
-            player2.resetPosition(1, 1);
-            player1.resetPosition(MAZE_COLS - 2, MAZE_ROWS - 2);
+            let p1SpawnIndex = Math.floor(Math.random() * validSpawns.length);
+            let p1Spawn = validSpawns.splice(p1SpawnIndex, 1)[0]; // Get and remove P1's spawn
+
+            let p2Spawn = null;
+            const maxSpawnRetries = 50;
+            let retries = 0;
+
+            while(retries < maxSpawnRetries && validSpawns.length > 0) {
+                let p2SpawnIndex = Math.floor(Math.random() * validSpawns.length);
+                let potentialP2Spawn = validSpawns[p2SpawnIndex];
+                
+                const distC = p1Spawn.c - potentialP2Spawn.c;
+                const distR = p1Spawn.r - potentialP2Spawn.r;
+                const distance = Math.sqrt(distC * distC + distR * distR);
+
+                if (distance >= MIN_SPAWN_DISTANCE_TILES) {
+                    p2Spawn = validSpawns.splice(p2SpawnIndex, 1)[0]; // Get and remove P2's spawn
+                    break; 
+                }
+                retries++;
+            }
+
+            if (!p2Spawn && validSpawns.length > 0) { // If couldn't find distant, just pick any remaining
+                p2Spawn = validSpawns.splice(Math.floor(Math.random() * validSpawns.length), 1)[0];
+                console.warn("Could not find a spawn for P2 far enough, placing randomly.");
+            } else if (!p2Spawn) { // Should be very rare if P1 spawn was found
+                 console.error("Could not find any spawn for P2!");
+                 // Fallback for P2 if all else fails (e.g. P1 took the only other spot)
+                 p2Spawn = (p1Spawn.c === 1 && p1Spawn.r === 1) ? {r: MAZE_ROWS - 2, c: MAZE_COLS - 2} : {r:1, c:1};
+            }
+
+            player1.resetPosition(p1Spawn.c, p1Spawn.r);
+            player2.resetPosition(p2Spawn.c, p2Spawn.r);
         }
+        // --- End Randomized Spawn Logic ---
         
         updateScoreboard();
         currentRoundDisplay.textContent = currentRound;
         maxRoundsDisplay.textContent = "First to " + MAX_POINTS_TO_WIN;
 
-
         gameState = 'READY';
         let countdown = 3;
-        gameMessageDisplay.textContent = `Round ${currentRound}! Get Ready... ${countdown}`;
+        gameMessageDisplay.textContent = `Map ${mapIndex + 1} - Round ${currentRound}! Get Ready... ${countdown}`;
         
         const readyInterval = setInterval(() => {
             countdown--;
@@ -286,9 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    function endRound(winnerPlayer) {
+    function endRound(winnerPlayer) { // Same as before
         if (gameState !== 'PLAYING') return;
-
         gameState = 'ROUND_OVER';
         let roundWinnerMessage;
 
@@ -311,14 +396,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
     
-    function endGame() {
+    function endGame() { // Same as before
         gameState = 'GAME_OVER';
         let finalMessage;
         if (player1.score > player2.score) {
             finalMessage = `Player 1 Wins the Game! (${player1.score}-${player2.score})`;
         } else if (player2.score > player1.score) {
             finalMessage = `Player 2 Wins the Game! (${player2.score}-${player1.score})`;
-        } else { // Should be rare with MAX_POINTS_TO_WIN
+        } else {
             finalMessage = `It's a Tie! (${player1.score}-${player2.score})`;
         }
         gameMessageDisplay.textContent = finalMessage + " Press Enter or Start to Play Again.";
@@ -326,52 +411,41 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRoundDisplay.textContent = "-";
     }
 
-    function updateScoreboard() {
+    function updateScoreboard() { // Same as before
         player1ScoreDisplay.textContent = player1.score;
         player2ScoreDisplay.textContent = player2.score;
-
         player1RoleDisplay.textContent = `(${player1.role || ''})`;
         player2RoleDisplay.textContent = `(${player2.role || ''})`;
-        
         player1RoleDisplay.className = player1.role === 'RUNNER' ? 'runner-role' : (player1.role === 'CHASER' ? 'chaser-role' : '');
         player2RoleDisplay.className = player2.role === 'RUNNER' ? 'runner-role' : (player2.role === 'CHASER' ? 'chaser-role' : '');
     }
 
-    function isWall(x, y) {
-        if (x < 0 || x >= MAZE_COLS || y < 0 || y >= MAZE_ROWS) {
-            return true;
-        }
+    function isWall(x, y) { // Same as before
+        if (x < 0 || x >= MAZE_COLS || y < 0 || y >= MAZE_ROWS) return true;
+        // Check against the current working 'maze'
         return maze[y][x] === WALL;
     }
 
-    function checkCollision() {
+    function checkCollision() { // Same as before
         let runner, chaser;
-        if (player1.role === 'RUNNER') {
-            runner = player1;
-            chaser = player2;
-        } else {
-            runner = player2;
-            chaser = player1;
-        }
+        if (player1.role === 'RUNNER') { runner = player1; chaser = player2; } 
+        else { runner = player2; chaser = player1; }
 
-        const dx = runner.x - chaser.x;
-        const dy = runner.y - chaser.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dxCollide = runner.x - chaser.x;
+        const dyCollide = runner.y - chaser.y;
+        const distance = Math.sqrt(dxCollide * dxCollide + dyCollide * dyCollide);
 
-        if (distance < runner.radius + chaser.radius - (PLAYER_SPEED / 2)) { // Slightly more lenient collision
+        if (distance < runner.radius + chaser.radius - (PLAYER_SPEED * 0.5)) {
             endRound(chaser);
         }
     }
 
-    function drawMaze() {
+    function drawMaze() { // Same as before
         for (let r = 0; r < MAZE_ROWS; r++) {
             for (let c = 0; c < MAZE_COLS; c++) {
                 ctx.fillStyle = '#000';
-                if (maze[r][c] === WALL) {
-                    ctx.fillStyle = '#3F51B5';
-                }
+                if (maze[r][c] === WALL) ctx.fillStyle = '#3F51B5';
                 ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-
                 if (maze[r][c] === GEM) {
                     ctx.beginPath();
                     ctx.arc(c * TILE_SIZE + TILE_SIZE / 2, r * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 5, 0, Math.PI * 2);
@@ -383,14 +457,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function draw() {
+    function draw() { // Same as before
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawMaze();
         if (player1) player1.draw();
         if (player2) player2.draw();
     }
     
-    function gameLoop() {
+    function gameLoop() { // Same as before
         if (gameState === 'PLAYING') {
             if (player1) player1.update();
             if (player2) player2.update();
@@ -400,11 +474,9 @@ document.addEventListener('DOMContentLoaded', () => {
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', (e) => { // Same as before
         if (gameState === 'INITIAL' || gameState === 'GAME_OVER') {
-            if (e.key === 'Enter') {
-                startGameSequence();
-            }
+            if (e.key === 'Enter') startGameSequence();
             return;
         }
         if (gameState !== 'PLAYING') return;
@@ -415,7 +487,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (e.key === 'a' || e.key === 'A') player1.setDirection(-1, 0);
             else if (e.key === 'd' || e.key === 'D') player1.setDirection(1, 0);
         }
-
         if (player2) {
             if (e.key === 'ArrowUp') player2.setDirection(0, -1);
             else if (e.key === 'ArrowDown') player2.setDirection(0, 1);
