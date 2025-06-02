@@ -147,3 +147,40 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }, false);
+
+// app.js
+console.log("app.js starting..."); // For initial script load confirmation
+
+// --- Scene Setup ---
+// ... (your existing scene setup code) ...
+const scene = new THREE.Scene();
+// ...
+
+// --- Create the Mesh ---
+const icosahedron = new THREE.Mesh(geometry, materials); // Apply the array of materials
+icosahedron.position.set(0,0,0); // Ensure it's at the origin
+scene.add(icosahedron);
+console.log("Icosahedron added to scene. Scene children count:", scene.children.length); // Check scene content
+console.log("Icosahedron material count:", icosahedron.material.length); // Should be 20 if using array
+
+// ... (rest of your code, including event listener) ...
+
+// --- Animation Loop ---
+let frameCounter = 0; // To limit console spam
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (frameCounter < 5) { // Log only for the first 5 frames
+        console.log(`Animate loop frame: ${frameCounter}, controls exist: ${!!controls}`);
+        frameCounter++;
+    }
+
+    if (controls) { // Defensive check
+        controls.update();
+    }
+    renderer.render(scene, camera);
+}
+animate();
+console.log("Initial call to animate() done."); // After calling animate the first time
+
+// ... (your window resize handler) ...
