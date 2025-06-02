@@ -1,2 +1,1 @@
-# (realideas)[jdpiggy.github.io/chemshape/]
-
+# [realideas](jdpiggy.github.io/chemshape/)
