@@ -3,23 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze Tag: Role Reversal</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Tungsten - Extra Work and Information</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .question-block {
+            margin-bottom: 30px;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background-color: #ecf0f1;
+        }
+        .formula, .calculation, .answer {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .formula code, .calculation code, .answer code {
+            background-color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: "Courier New", Courier, monospace;
+        }
+        .answer strong {
+            color: #27ae60;
+        }
+        code.config {
+            display: block;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap; /* Allows wrapping for long lines */
+            word-break: break-all; /* Breaks long unbreakable strings */
+            font-size: 0.9em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .back-link:hover {
+            background-color: #2980b9;
+        }
+    </style>
 </head>
 <body>
-    <div class="game-container">
-        <div class="ui-panel">
-            <h1>Maze Tag: Role Reversal</h1>
-            <div class="score-board">
-                <div id="player1Display">Player 1 (WASD): <span id="player1Score">0</span> <span id="player1Role"></span></div>
-                <div id="player2Display">Player 2 (Arrows): <span id="player2Score">0</span> <span id="player2Role"></span></div>
-            </div>
-            <div id="roundInfo">Round: <span id="currentRoundDisplay">1</span> / <span id="maxRoundsDisplay">5</span></div>
-            <div id="gameMessage">Press Enter to Start</div>
-            <button id="startButton" style="display: none;">Start Game</button> <!-- Initially hidden, controlled by JS -->
+    <div class="container">
+        <h1>Extra Paper: Tungsten (W) Work and Information</h1>
+
+        <div class="question-block">
+            <h2>Question 10: Energy to raise temperature</h2>
+            <p><strong>How much energy is needed to raise the temperature of 100.0 g of tungsten by 10°C?</strong></p>
+            <p><strong>Given:</strong></p>
+            <ul>
+                <li>Mass (m): 100.0 g</li>
+                <li>Specific heat capacity (c): 0.13 J/g·°C</li>
+                <li>Temperature change (ΔT): 10°C</li>
+            </ul>
+            <p class="formula"><strong>Formula:</strong> <code>Q = m ⋅ c ⋅ ΔT</code></p>
+            <p class="calculation"><strong>Calculation:</strong><br>
+                <code>Q = 100.0 g × 0.13 J/g·°C × 10 °C</code><br>
+                <code>Q = 130 J</code>
+            </p>
+            <p class="answer"><strong>Answer:</strong> <strong>130 Joules</strong> of energy are needed.</p>
         </div>
-        <canvas id="gameCanvas"></canvas>
+
+        <div class="question-block">
+            <h2>Question 11: Moles from atoms</h2>
+            <p><strong>How many moles contain 9.50 × 10²⁴ atoms?</strong></p>
+            <p><strong>Given:</strong></p>
+            <ul>
+                <li>Number of atoms: 9.50 × 10²⁴</li>
+                <li>Avogadro’s number: 6.022 × 10²³ atoms/mol</li>
+            </ul>
+            <p class="formula"><strong>Formula:</strong> <code>Moles = Number of atoms / Avogadro’s number</code></p>
+            <p class="calculation"><strong>Calculation:</strong><br>
+                <code>Moles = (9.50 × 10²⁴ atoms) / (6.022 × 10²³ atoms/mol)</code><br>
+                <code>Moles ≈ 15.7755... mol</code>
+            </p>
+            <p class="answer"><strong>Answer:</strong> Approximately <strong>15.78 moles</strong> of tungsten contain 9.50 × 10²⁴ atoms.</p>
+        </div>
+
+        <div class="question-block">
+            <h2>Question 12: Most common charge(s) of tungsten in an ionic compound</h2>
+            <p><strong>Discussion:</strong><br>
+            Tungsten most commonly forms compounds with a 6+ oxidation state (such as in tungstates like Na₂WO₄). It can also form compounds with a 4+ oxidation state, but these are less common. Pure ionic compounds of tungsten are rare; most are complex or covalent. For practical purposes (and most classroom settings), the most common ionic-like charge is 6+.</p>
+            <p class="answer"><strong>Answer:</strong> <strong>6+</strong> (most common charge in ionic-like compounds, such as tungstates)</p>
+        </div>
+
+        <div class="question-block">
+            <h2>Full Electron Configuration and Noble Gas Configuration</h2>
+            <p><strong>Full electron configuration:</strong></p>
+            <code class="config">1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f¹⁴ 5d⁴ 6s²</code>
+            <p><strong>Noble gas (shorthand) electron configuration:</strong></p>
+            <code class="config">[Xe] 4f¹⁴ 5d⁴ 6s²</code>
+        </div>
+
+        <div class="question-block">
+            <h2>Stable Isotopes of Tungsten</h2>
+            <p><strong>Number of common stable isotopes:</strong><br>
+            Tungsten has five naturally occurring isotopes. Four are considered stable, and one (¹⁸⁰W) has an extremely long half-life and is often included as stable for practical purposes.</p>
+            <p><strong>Nuclear symbols and hyphen notation:</strong></p>
+            <ul>
+                <li>¹⁸⁰W (tungsten-180)</li>
+                <li>¹⁸²W (tungsten-182)</li>
+                <li>¹⁸³W (tungsten-183)</li>
+                <li>¹⁸⁴W (tungsten-184)</li>
+                <li>¹⁸⁶W (tungsten-186)</li>
+            </ul>
+            <p><em>Note: For most classroom settings, all five are considered “stable.” If your teacher wants only the strictly stable isotopes, list the four: ¹⁸²W, ¹⁸³W, ¹⁸⁴W, ¹⁸⁶W.</em></p>
+        </div>
+
+        <h2>Summary Table</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Question/Topic</th>
+                    <th>Answer/Information</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Energy to heat 100g by 10°C</td>
+                    <td>130 J</td>
+                </tr>
+                <tr>
+                    <td>Moles in 9.50 × 10²⁴ atoms</td>
+                    <td>15.78 moles</td>
+                </tr>
+                <tr>
+                    <td>Most common ionic charge</td>
+                    <td>6+ (in tungstates, e.g., Na₂WO₄)</td>
+                </tr>
+                <tr>
+                    <td>Full electron configuration</td>
+                    <td>1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s² 4p⁶ 4d¹⁰ 5s² 5p⁶ 4f¹⁴ 5d⁴ 6s²</td>
+                </tr>
+                <tr>
+                    <td>Noble gas configuration</td>
+                    <td>[Xe] 4f¹⁴ 5d⁴ 6s²</td>
+                </tr>
+                <tr>
+                    <td>Stable isotopes</td>
+                    <td>¹⁸⁰W, ¹⁸²W, ¹⁸³W, ¹⁸⁴W, ¹⁸⁶W (tungsten-180, -182, -183, -184, -186)</td>
+                </tr>
+            </tbody>
+        </table>
+        <a href="index.html" class="back-link">Back to 3D Model</a>
+
     </div>
-    <script src="script.js"></script>
 </body>
 </html>
