@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tungsten Element Ball</title>
+    <title>Tungsten Element Ball - DEBUG</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #f0f0f0; }
-        canvas { display: block; }
-        /* Style for the button */
+        canvas { display: block; } /* Important for Three.js canvas */
+
         #extraInfoButton {
             position: absolute;
             top: 20px;
@@ -17,20 +17,45 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
-            z-index: 100; /* Ensure it's on top of the canvas */
+            z-index: 100;
         }
-        #extraInfoButton:hover {
-            background-color: #0056b3;
+
+        /* Navigation UI styles - these will still apply, but the elements won't be created by the simplified JS */
+        #navigation-ui {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            max-width: 250px;
+            z-index: 100;
+        }
+        .nav-triangle {
+            width: 0; height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 30px solid #557799;
+            cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-triangle:hover { border-bottom-color: #7799bb; }
+        .nav-triangle-text {
+            position: absolute; top: 12px;
+            color: white; font-size: 10px; font-family: Arial, sans-serif;
+            text-align: center; pointer-events: none; width: 100%;
         }
     </style>
 </head>
 <body>
-    <!-- Add the button here -->
+    <!-- This div will be empty with the simplified JS -->
+    <div id="navigation-ui"></div> 
+    
     <button id="extraInfoButton">Extra Required Info</button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- MODIFIED LINE BELOW -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- OrbitControls is not used in the simplified JS, but link can remain -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script> 
     <script src="app.js"></script>
 </body>
 </html>
