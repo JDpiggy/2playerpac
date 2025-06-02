@@ -1,1 +1,1 @@
-# [heres the shape](jdpiggy.github.io/chemshape/)
+# [heres the actual website](jdpiggy.github.io/chemshape/)
