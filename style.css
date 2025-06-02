@@ -86,3 +86,42 @@ body {
     background-color: #000; /* Maze background */
     display: block; /* Removes extra space below canvas */
 }
+
+#navigation-ui {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap to next line */
+    gap: 5px; /* Spacing between items */
+    max-width: 250px; /* Limit width to encourage wrapping */
+    z-index: 100; /* On top of the canvas */
+}
+
+.nav-triangle {
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 30px solid #557799; /* Triangle color */
+    cursor: pointer;
+    position: relative; /* For text positioning */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-triangle:hover {
+    border-bottom-color: #7799bb; /* Lighter on hover */
+}
+
+.nav-triangle-text {
+    position: absolute;
+    top: 12px; /* Adjust to center text on triangle */
+    color: white;
+    font-size: 10px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    pointer-events: none; /* Text doesn't interfere with click */
+    width: 100%;
+}
