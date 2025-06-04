@@ -7,25 +7,26 @@ let scene, camera, renderer, controls, icosahedron; // Removed nav/rotation spec
 const faceDataArray = [
     { lines: ["Element Name:", "Tungsten", "Element Symbol:", "W"] }, // Face 1
     { lines: ["Atomic Number:", "74", "Avg. Atomic Mass:", "183.84"] }, // Face 2
-    { lines: ["Electronegativity (Pauling):", "2.36", "First Ionization Energy:", "758.76 kJ/mol"] }, // Face 3
-    { lines: ["Bond w/ H:", "Info Missing", "Bond w/ O:", "Info Missing"] }, // Face 4
+    { lines: ["Electronegativity (Pauling):", "2.36", "First Ionization Energy:", "770 kJ/mol"] }, // Face 3
+    { lines: ["Bond w/ H:", "Forms tungsten hydrides (WH6, unstable)", "Bond w/ O:", "Forms tungsten oxides (WO2, WO3)"] }, // Face 4
     { lines: ["Compounds w/ O:", "WO₂", " ", "WO₃", "Name (WO₃):", "Tungsten(VI) oxide"] }, // Face 5
     { lines: ["Protons (Neutral Atom):", "74", "Neutrons (Most Common):", "110", "Electrons (Neutral Atom):", "74"] }, // Face 6
     { lines: ["Discovered:", "1783", "By Whom:", "Fausto & Juan Jose de Elhuyar"] }, // Face 7
     { lines: ["Group Number (1-18):", "6", "Period Number:", "6", "Block:", "d"] }, // Face 8
-    { lines: ["Balanced Chemical Rxn:", "Data missing from source.", "Reaction Classification:", "Data missing from source."] }, // Face 9
-    { lines: ["Grams for 15.00g Product:", "(From Rxn 9)", "Data missing from source."] }, // Face 10
-    { lines: ["Specific Heat (Std State):", "0.13 J g⁻¹ K⁻¹", "Energy to Heat 100g by 10°C:", "Data missing from source."] }, // Face 11
-    { lines: ["Moles in 9.50 x 10²⁴ atoms:", "Data missing from source."] }, // Face 12
-    { lines: ["Most Common Charge(s):", "(Ionic Compound)", "Data missing from source."] }, // Face 13
+    { lines: ["Balanced Chemical Rxn:", "2W + 3O₂ → 2WO₃", "Reaction Classification:", "Combination (synthesis) reaction"] }, // Face 9
+    { lines: ["Grams for 15.00g Product:", "(From Rxn 9)", "8.41 g W needed for 15.00 g WO₃"] }, // Face 10
+    { lines: ["Specific Heat (Std State):", "0.13 J g⁻¹ K⁻¹", "Energy to Heat 100g by 10°C:", "130 J"] }, // Face 11
+    { lines: ["Moles in 9.50 x 10²⁴ atoms:", "15.8 mol"] }, // Face 12
+    { lines: ["Most Common Charge(s):", "(Ionic Compound)", "+6, +4"] }, // Face 13
     { lines: ["Boiling Point (°C):", "5555", "Melting Point (°C):", "3422", "Density (g/cm³):", "19.3"] }, // Face 14
     { lines: ["Classification:", "metal"] }, // Face 15
     { lines: ["Physical State (Room Temp):", "solid", "Color/Appearance:", "silvery-white, lustrous"] }, // Face 16
-    { lines: ["Electron Config:", "(Full & Noble Gas)", "Data missing from source."] }, // Face 17
-    { lines: ["Common Stable Isotopes:", "(Symbols & Hyphen Notation)", "Data missing from source."] }, // Face 18
+    { lines: ["Electron Config:", "(Full & Noble Gas)", "[Xe] 4f¹⁴ 5d⁴ 6s²"] }, // Face 17
+    { lines: ["Common Stable Isotopes:", "(Symbols & Hyphen Notation)", "W-182, W-183, W-184, W-186"] }, // Face 18
     { lines: ["Uses:", "- Filaments (bulbs, tubes)", "- Halogen tungsten lamps", "- High speed steel (up to 18%)", "Importance to Human Body:", "Limited role; in some enzymes."]},
-    { lines: ["Health/Safety Issues:", "Considered low toxicity.", "Handling and Storage:", "Data missing from source."] }
+    { lines: ["Health/Safety Issues:", "Considered low toxicity.", "Handling and Storage:", "Store in dry, cool place; avoid inhaling dust."] }
 ];
+
 
 // --- Initialization Function ---
 function init() {
